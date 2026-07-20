@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use ZoraOS, please cite the software and its accompanying technical report."
+title: "ZoraOS"
+version: "0.1.0"
+date-released: "2026-07-20"
+authors:
+  - family-names: "Baird"
+    given-names: "Christopher Michael"
+repository-code: "https://github.com/Cbaird26/zoraos"
+abstract: "A local-first, model-agnostic system for persistent tool-using agents, user-owned memory, and governed human-supervised interaction."
+keywords:
+  - AI agents
+  - local-first AI
+  - retrieval augmented generation
+  - tool use
+  - AI safety

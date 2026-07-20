@@ -1,0 +1,89 @@
+zoraos:
+  version: "0.1.0"
+  name: "ZoraOS"
+  description: "Local-first AI operating system for research, coding, and knowledge management"
+
+agents:
+  research:
+    enabled: true
+    max_concurrent_tasks: 3
+    default_model: ""
+    tools:
+      - web_search
+      - pdf_reader
+      - arxiv
+      - memory_write
+      - memory_read
+
+  developer:
+    enabled: true
+    max_concurrent_tasks: 2
+    default_model: ""
+    tools:
+      - filesystem
+      - git
+      - github
+      - python_exec
+      - terminal
+      - memory_read
+
+  writer:
+    enabled: true
+    max_concurrent_tasks: 2
+    default_model: ""
+    tools:
+      - filesystem
+      - memory_read
+      - web_search
+
+  knowledge:
+    enabled: true
+    max_concurrent_tasks: 2
+    default_model: ""
+    tools:
+      - memory_read
+      - memory_write
+      - memory_search
+
+  planner:
+    enabled: true
+    max_concurrent_tasks: 1
+    default_model: ""
+
+workflows:
+  morning_briefing:
+    schedule: "0 7 * * 1-5"
+    agent: research
+    tasks:
+      - read_arxiv
+      - read_ai_news
+      - read_github_notifications
+      - generate_briefing
+
+  evening_summary:
+    schedule: "0 21 * * 1-5"
+    agent: knowledge
+    tasks:
+      - backup_knowledge
+      - summarize_work
+      - index_documents
+      - suggest_priorities
+
+tools:
+  web_search:
+    max_results: 8
+    timeout: 30
+
+  pdf_reader:
+    max_pages: 100
+    extract_images: false
+
+  python_exec:
+    timeout: 60
+    max_output_length: 10000
+
+memory:
+  chunk_size: 1000
+  chunk_overlap: 200
+  embedding_dimension: 384
+  rerank_top_k: 5

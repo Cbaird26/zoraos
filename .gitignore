@@ -1,0 +1,54 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python build and runtime artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Local services and user-owned data
+data/
+chroma/
+postgres-data/
+redis-data/
+logs/
+artifacts/
+*.log
+eqlog_*.txt
+
+# Screenshots, captures, and unredacted research records remain private
+screenshots/
+captures/
+*.png
+*.jpg
+*.jpeg
+
+# Node and UI build outputs
+ui/node_modules/
+ui/.next/
+ui/out/
+
+# LaTeX intermediate files
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.pdf
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/

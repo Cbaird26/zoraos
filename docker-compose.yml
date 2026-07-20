@@ -1,0 +1,116 @@
+version: "3.8"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  gateway:
+    build: .
+    container_name: zoraos-gateway
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - .:/app
+      - zoraos_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - zoraos-net
+    logging: *default-logging
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: zoraos-postgres
+    environment:
+      POSTGRES_USER: zoraos
+      POSTGRES_PASSWORD: zoraos
+      POSTGRES_DB: zoraos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zoraos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zoraos-net
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    container_name: zoraos-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - zoraos-net
+    logging: *default-logging
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: zoraos-chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma-data
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma-data
+    networks:
+      - zoraos-net
+    logging: *default-logging
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: zoraos-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - zoraos-net
+    logging: *default-logging
+
+  scheduler:
+    build: .
+    container_name: zoraos-scheduler
+    command: python -m scheduler.runner
+    env_file: .env
+    volumes:
+      - .:/app
+      - zoraos_data:/app/data
+    depends_on:
+      - gateway
+    networks:
+      - zoraos-net
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  redis_data:
+  chroma_data:
+  ollama_data:
+  zoraos_data:
+
+networks:
+  zoraos-net:
+    driver: bridge

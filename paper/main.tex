@@ -1,0 +1,103 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdftitle={ZoraOS: A Local-First Architecture for Persistent Tool-Using Agents},
+  pdfauthor={Christopher Michael Baird}
+}
+
+\title{ZoraOS: A Local-First Architecture for Persistent Tool-Using Agents with Safety-Constrained Human-Supervised Interaction}
+\author{Christopher Michael Baird\\ZoraOS Research Project}
+\date{July 20, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This paper presents ZoraOS, a local-first and model-agnostic architecture for persistent tool-using agents. The prototype separates durable orchestration, user-owned memory, and tool interfaces from interchangeable language-model providers. Its core execution loop alternates between model responses and structured tool results under an iteration bound, returning task-level telemetry including latency, token usage where available, and a trace of tool calls. A semantic-memory case study retrieved relevant passages from a long-form technical corpus and produced a synthesized report through repeated search and read operations. We further report a supervised desktop-interface experiment that exposed an important limitation: generic OCR was unreliable for a rendered third-party user interface, motivating preference for authorized application-native records over invasive observation methods. The work is framed as an implementation report and governance proposal, not evidence of consciousness, general intelligence, or safe unattended autonomy. We describe safety requirements for capability scoping, user confirmation, task budgets, provenance, and append-only audit records.
+\end{abstract}
+
+\section{Introduction}
+Large language models can produce useful plans and natural-language explanations, but reliable agentic systems require more than a model invocation. They require persistent memory, controlled access to tools, bounded execution, observability, and user authority. ZoraOS is a prototype intended to make these system-level capabilities durable while allowing the underlying model provider to change.
+
+The design follows an agent-tool interaction pattern related to reasoning-and-action approaches \citep{yao2023react}, tool-learning systems \citep{schick2023toolformer}, and retrieval-augmented generation \citep{lewis2020retrieval}. Its governing premise is that the long-lived assets of a personal AI system should be user-owned memory, reproducible workflows, and policy controls rather than a dependency on any one hosted model.
+
+This paper makes four contributions:
+\begin{enumerate}[leftmargin=*]
+  \item a modular architecture separating models, agents, tools, memory, and API orchestration;
+  \item a bounded tool-use execution loop with structured task results;
+  \item an implementation case study of semantic retrieval over a user-owned technical corpus; and
+  \item a safety-oriented analysis of supervised desktop interaction and its limitations.
+\end{enumerate}
+
+\section{System Architecture}
+ZoraOS is organized as a local API gateway, planner and router, specialized agents, model-provider adapters, tool registry, and memory subsystem. The gateway receives a task; an agent receives the task, system prompt, model configuration, and authorized tool set; the agent then executes a bounded model-tool loop. Memory consists of document storage and vector retrieval organized into collections.
+
+The intended deployment separates orchestration, inference, automation, and memory services across multiple machines. This separation is an operational design choice, not a requirement for a minimal deployment. The architecture supports both local inference services and hosted providers through a common model-management interface.
+
+\section{Bounded Tool-Use Loop}
+For a task objective $g$, a system prompt $s$, and authorized tools $T$, the agent initializes a conversation with $(s,g)$. At iteration $i$, the model yields either a final response or a set of tool calls. Each tool result is serialized into the conversation before the next model invocation. The loop terminates on a final response or at a configured iteration limit $I_{\max}$.
+
+\begin{equation}
+  \mathrm{terminate} \iff \mathrm{final\_response} \lor i \geq I_{\max}.
+\end{equation}
+
+The structured result includes a success flag, task identifier, agent name, model identifier when supplied by the provider, iteration count, token usage when reported, latency, output, and tool-call trace. This structure makes failure states observable rather than silently extending a conversation indefinitely.
+
+\section{Persistent Semantic Memory Case Study}
+The prototype indexed 6,607 chunks from a 6,340-page technical dissertation into a \texttt{physics} collection. A semantic query for ``quantum gravity'' returned ranked passages with reported similarity scores above 0.79 in an observed retrieval run. A subsequent research-agent task executed five tool-loop iterations, invoked memory search and read operations, and generated a synthesis grounded in retrieved passages.
+
+These observations show retrieval and iterative tool use in one deployment. They do not establish factual correctness of every generated statement, generalize to all corpora, or demonstrate long-term autonomous competence. Retrieval relevance must be assessed with human judgments and task-specific evaluation sets.
+
+\section{Human-Supervised Desktop Interaction}
+An exploratory desktop bridge used visible input primitives, screen capture, OCR, waiting, and a local kill-switch convention. The research goal was to explore the interface boundary, not to create unattended automation. Generic OCR acquired screen pixels but did not reliably extract text from the target rendered interface. This outcome is significant: perception quality and provenance constrain autonomy as much as planning quality.
+
+The experiment also motivated a strict design rule. The system must not inspect packets, read or write application memory, inject into processes, evade platform controls, or operate unauthorized third-party services. When an application offers authorized, user-controlled logs or accessibility interfaces, those sources should be preferred over fragile or invasive techniques.
+
+\section{Safety and Governance}
+Human-centered AI requires that user control remain meaningful throughout design and deployment \citep{shneiderman2020human}. The ZoraASI governance profile therefore specifies least privilege, bounded tasks, explicit approval for irreversible or external actions, artifact classification, and durable action records. The NIST AI Risk Management Framework likewise emphasizes governance, measurement, management, and documentation across the AI lifecycle \citep{nist2023airmf}.
+
+Table~\ref{tab:controls} distinguishes prototype capabilities from required future controls.
+
+\begin{table}[ht]
+\centering
+\caption{Implemented and required governance controls.}
+\label{tab:controls}
+\begin{tabular}{p{0.36\linewidth}p{0.23\linewidth}p{0.30\linewidth}}
+\toprule
+Control & Current status & Required next step \\
+\midrule
+Bounded agent iterations & Implemented & Add per-task token, cost, and tool-call budgets \\
+Registered tool selection & Implemented & Add permission scopes and expiry \\
+Local kill-switch convention & Prototype & Add visible control, integration test, and terminal task state \\
+Tool-call reporting & Implemented & Add append-only hash-chained audit events \\
+Desktop screen capture and OCR & Prototype & Evaluate only in an authorized sandbox \\
+External action confirmation & Proposed & Implement a mandatory approval broker \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Limitations}
+This work has important limitations. The reported observations derive from a prototype and a small number of runs. The agent is subject to model hallucination, retrieval error, tool failure, prompt sensitivity, and incomplete policy enforcement. The desktop-interface experiment did not establish reliable perception or safe autonomous operation. Anthropomorphic language in prompts or user interaction is not evidence of subjective experience. The system should therefore be evaluated as a governed software architecture, not as a sentient actor.
+
+\section{Conclusion}
+ZoraOS demonstrates the value of separating models from the durable infrastructure required for agentic work: memory, orchestration, tools, logs, constraints, and human authority. Its initial results support further evaluation of bounded tool use and user-owned semantic memory. Its interface limitations reinforce a central conclusion: safe autonomy depends on reliable perception, explicit permissions, and auditable controls, not merely on a capable language model.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
