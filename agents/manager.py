@@ -11,10 +11,15 @@ from .registry import AgentRegistry
 
 
 class AgentManager:
-    def __init__(self, model_manager: ModelManager, tool_registry: ToolRegistry):
+    def __init__(
+        self,
+        model_manager: ModelManager,
+        tool_registry: ToolRegistry,
+        tool_manager: ToolManager | None = None,
+    ):
         self._model_manager = model_manager
         self._tool_registry = tool_registry
-        self._tool_manager = ToolManager(tool_registry)
+        self._tool_manager = tool_manager or ToolManager(tool_registry)
         self._instances: Dict[str, Agent] = {}
 
     def create_agent(self, agent_type: str, config: Optional[AgentConfig] = None) -> Agent:

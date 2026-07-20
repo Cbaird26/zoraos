@@ -88,10 +88,13 @@ class Agent(ABC):
         iterations = 0
         tokens_used = 0
         final_response = None
+        termination_error = None
         all_tool_calls: List[Dict[str, Any]] = []
         last_response = None
+        max_iterations = int(kwargs.get("max_iterations", self.config.max_iterations))
+        max_tokens = kwargs.get("max_tokens")
 
-        while iterations < self.config.max_iterations:
+        while iterations < max_iterations:
             iterations += 1
 
             openai_tools = None
@@ -103,6 +106,9 @@ class Agent(ABC):
 
             if response.usage:
                 tokens_used += response.usage.get("total_tokens", 0)
+                if max_tokens is not None and tokens_used >= int(max_tokens):
+                    termination_error = "Agent reached token budget before producing a final response"
+                    break
 
             if response.tool_calls:
                 assistant_msg: Dict[str, Any] = {"role": "assistant", "content": response.content or ""}
@@ -154,7 +160,11 @@ class Agent(ABC):
         return AgentResult(
             success=final_response is not None,
             output={"response": final_response, "tool_calls": all_tool_calls, "iterations": iterations},
-            error=None if final_response is not None else "Agent reached max iterations without producing final response",
+            error=(
+                None
+                if final_response is not None
+                else termination_error or "Agent reached max iterations without producing final response"
+            ),
             agent_name=self.name,
             model_used=last_response.model if last_response else None,
             iterations=iterations,

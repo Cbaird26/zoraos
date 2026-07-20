@@ -25,11 +25,19 @@ ZoraASI is the governed operating profile for ZoraOS. It describes a system that
 | Third-party application control | GUI input, browser actions, remote desktop actions | Explicit confirmation, target verification, session supervision |
 | Prohibited | Packet inspection/injection, memory inspection, evasion, credential harvesting | Denied unconditionally |
 
+## Implemented Prototype Controls
+
+- Per-task tool-call, iteration, and optional token budgets.
+- Explicit per-task approvals for local-write and external tools.
+- An in-memory SHA-256 hash-chained audit ledger for task and tool events.
+- Cancellation requests that prevent subsequent tool invocations.
+- Denial of third-party desktop-control tools outside a dedicated sandbox.
+
 ## Required Future Controls
 
-- An append-only action ledger with event IDs and hash chaining.
-- A permission broker with capability scopes and expirations.
-- A task budget manager.
+- Durable append-only action-ledger storage with export and retention controls.
+- A permission broker with capability scopes, actor identity, and expirations.
+- Financial and wall-clock budget enforcement.
 - A user-visible pause and termination interface.
 - Confirmation gates for external or irreversible actions.
 - Regression tests for policy refusal and kill-switch behavior.

@@ -71,7 +71,7 @@ disallow_untyped_defs = true
 ignore_missing_imports = true
 
 [tool.setuptools.packages.find]
-include = ["agents*", "api*", "memory*", "models*", "tools*", "gateway*", "planner*", "router*", "scheduler*", "configs*", "plugins*"]
+include = ["agents*", "api*", "memory*", "models*", "tools*", "gateway*", "governance*", "planner*", "router*", "scheduler*", "configs*", "plugins*"]
 exclude = ["*.tests", "*.tests.*"]
 namespaces = false
 

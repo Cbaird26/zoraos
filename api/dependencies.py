@@ -13,6 +13,8 @@ from agents.implementations import (
 from agents.manager import AgentManager
 from agents.registry import AgentRegistry
 from gateway.service import GatewayService
+from governance.audit import AuditLedger
+from governance.policy import GovernancePolicy
 from memory.store import DocumentStore
 from memory.vector import VectorStore
 from models.manager import ModelManager
@@ -99,11 +101,13 @@ def get_tool_registry() -> ToolRegistry:
 
 
 def get_tool_manager() -> ToolManager:
-    return ToolManager(get_tool_registry())
+    return ToolManager(get_tool_registry(), GovernancePolicy(), AuditLedger())
 
 
 def get_agent_manager() -> AgentManager:
-    return AgentManager(get_model_manager(), get_tool_registry())
+    registry = get_tool_registry()
+    tool_manager = ToolManager(registry, GovernancePolicy(), AuditLedger())
+    return AgentManager(get_model_manager(), registry, tool_manager)
 
 
 def get_planner() -> PlannerEngine:
@@ -116,11 +120,20 @@ def get_router() -> RouterEngine:
     return RouterEngine()
 
 
+@lru_cache
 def get_gateway() -> GatewayService:
+    model_manager = get_model_manager()
+    tool_registry = get_tool_registry()
+    audit_ledger = AuditLedger()
+    tool_manager = ToolManager(tool_registry, GovernancePolicy(), audit_ledger)
+    agent_manager = AgentManager(model_manager, tool_registry, tool_manager)
+    planner = PlannerEngine()
+    planner.configure(model_manager, agent_manager)
     return GatewayService(
-        model_manager=get_model_manager(),
-        agent_manager=get_agent_manager(),
-        tool_manager=get_tool_manager(),
-        planner=get_planner(),
+        model_manager=model_manager,
+        agent_manager=agent_manager,
+        tool_manager=tool_manager,
+        planner=planner,
         router=get_router(),
+        audit_ledger=audit_ledger,
     )
