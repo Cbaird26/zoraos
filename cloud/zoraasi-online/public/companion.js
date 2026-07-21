@@ -16,12 +16,17 @@ const PALETTE = {
 const container = document.getElementById('scene');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(PALETTE.ink);
-scene.fog = new THREE.FogExp2(PALETTE.ink, 0.04);
+scene.fog = new THREE.FogExp2(PALETTE.ink, 0.045);
 
-const camera = new THREE.PerspectiveCamera(24, window.innerWidth / window.innerHeight, 0.1, 30);
-camera.position.set(0, 2.5, 6.2);
+const camera = new THREE.PerspectiveCamera(26, window.innerWidth / window.innerHeight, 0.1, 30);
+camera.position.set(0, 2.35, 5.9);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ 
+  antialias: true, 
+  alpha: true, 
+  powerPreference: 'high-performance',
+  preserveDrawingBuffer: false
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -33,313 +38,318 @@ container.appendChild(renderer.domElement);
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.12, 0.25, 0.08);
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.18, 0.45, 0.6);
 composer.addPass(bloom);
 
-const ambient = new THREE.HemisphereLight(PALETTE.frost, PALETTE.ink, 0.6);
+// ── Lighting System ──
+const ambient = new THREE.HemisphereLight(PALETTE.frost, PALETTE.ink, 0.55);
 scene.add(ambient);
-const key = new THREE.DirectionalLight(0xffeedd, 2.2);
-key.position.set(4, 6, 5);
-key.castShadow = true;
-key.shadow.mapSize.width = 2048;
-key.shadow.mapSize.height = 2048;
-key.shadow.camera.near = 0.1;
-key.shadow.camera.far = 15;
-key.shadow.camera.left = -3;
-key.shadow.camera.right = 3;
-key.shadow.camera.top = 3;
-key.shadow.camera.bottom = -3;
-key.shadow.bias = -0.002;
-scene.add(key);
-const fill = new THREE.DirectionalLight(0x8888ff, 0.35);
-fill.position.set(-3, 4, -2);
-scene.add(fill);
-const rim = new THREE.DirectionalLight(PALETTE.violet, 0.5);
-rim.position.set(-2, 1, -5);
-scene.add(rim);
-const accent = new THREE.DirectionalLight(PALETTE.amber, 0.2);
-accent.position.set(0, -1, 3);
-scene.add(accent);
 
+const keyLight = new THREE.DirectionalLight(0xffeedd, 2.8);
+keyLight.position.set(5, 7, 6);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.width = 2048;
+keyLight.shadow.mapSize.height = 2048;
+keyLight.shadow.camera.near = 0.1;
+keyLight.shadow.camera.far = 20;
+keyLight.shadow.camera.left = -4;
+keyLight.shadow.camera.right = 4;
+keyLight.shadow.camera.top = 4;
+keyLight.shadow.camera.bottom = -4;
+keyLight.shadow.bias = -0.001;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0x8888ff, 0.4);
+fillLight.position.set(-4, 5, -3);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(PALETTE.violet, 0.6);
+rimLight.position.set(-3, 2, -5);
+scene.add(rimLight);
+
+const accentLight = new THREE.DirectionalLight(PALETTE.amber, 0.25);
+accentLight.position.set(0, -1, 3);
+scene.add(accentLight);
+
+// ── Character Group ──
 const char = new THREE.Group();
-const hairPivot = new THREE.Group();
 
-function pbrMat(color, opts = {}) {
-  return new THREE.MeshStandardMaterial({
-    color, roughness: opts.roughness ?? 0.5, metalness: opts.metalness ?? 0,
-    emissive: opts.emissive ?? 0x000000, emissiveIntensity: opts.emissiveIntensity ?? 0,
-    transparent: opts.transparent ?? false, opacity: opts.opacity ?? 1,
-    side: opts.side ?? THREE.FrontSide,
-  });
-}
+// Custom shader material for skin with subtle fresnel
+const skinMat = new THREE.MeshStandardMaterial({
+  color: PALETTE.skin,
+  roughness: 0.38,
+  metalness: 0.0,
+  clearcoat: 0.1,
+  clearcoatRoughness: 0.2,
+  envMapIntensity: 0.4
+});
 
-// Pedestal — crystalline platform
-const pedMat = pbrMat(PALETTE.panel, { roughness: 0.3, metalness: 0.4 });
-const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.95, 0.06, 48), pedMat);
-ped.position.y = -0.03;
-ped.receiveShadow = true;
-ped.castShadow = true;
-char.add(ped);
+// Hair material with subtle sheen
+const hairMat = new THREE.MeshStandardMaterial({
+  color: PALETTE.hair,
+  roughness: 0.75,
+  metalness: 0.15,
+  emissive: 0x000000,
+  emissiveIntensity: 0.0
+});
 
-// Glow ring
-const gMat = pbrMat(PALETTE.gold, { emissive: PALETTE.gold, emissiveIntensity: 0.3, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
-const gRing = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.012, 16, 48), gMat);
-gRing.position.y = 0.02;
-gRing.rotation.x = -Math.PI / 2;
-char.add(gRing);
-const gRing2 = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.006, 16, 48), gMat.clone());
-gRing2.material.emissiveIntensity = 0.4;
-gRing2.material.color.setHex(PALETTE.violet);
-gRing2.material.emissive.setHex(PALETTE.violet);
-gRing2.position.y = 0.015;
-gRing2.rotation.x = -Math.PI / 2 + 0.1;
-char.add(gRing2);
+// Eye material with refraction-like highlight
+const eyeMat = new THREE.MeshStandardMaterial({
+  color: PALETTE.eyeWhite,
+  roughness: 0.1,
+  metalness: 0.0
+});
 
-// ── Body ──
-const dressMat = pbrMat(0x1a1a2e, { roughness: 0.85, metalness: 0.05 });
-const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.65, 0.75, 20), dressMat);
-body.position.y = 0.38;
+// Iris material with glow
+const irisMat = new THREE.MeshStandardMaterial({
+  color: PALETTE.iris,
+  emissive: PALETTE.iris,
+  emissiveIntensity: 0.15,
+  roughness: 0.12,
+  metalness: 0.05
+});
+
+// ── Pedestal (crystalline platform) ──
+const pedMat = new THREE.MeshStandardMaterial({
+  color: PALETTE.panel,
+  roughness: 0.25,
+  metalness: 0.35,
+  transparent: true,
+  opacity: 0.7
+});
+const pedestal = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.78, 0.92, 0.08, 64),
+  pedMat
+);
+pedestal.position.y = -0.04;
+pedestal.receiveShadow = true;
+pedestal.castShadow = true;
+char.add(pedestal);
+
+// Glow orbs around pedestal
+const glowMat = new THREE.MeshBasicMaterial({
+  color: PALETTE.gold,
+  transparent: true,
+  opacity: 0.25,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
+});
+const glowOrb1 = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), glowMat.clone());
+glowOrb1.position.set(0.22, 0.08, 0.18);
+const glowOrb2 = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), glowMat.clone());
+glowOrb2.material.color.setHex(PALETTE.violet);
+glowOrb2.material.emissive.setHex(PALETTE.violet);
+glowOrb2.material.emissiveIntensity = 0.3;
+glowOrb2.position.set(-0.18, 0.05, -0.22);
+char.add(glowOrb1, glowOrb2);
+
+// ── Body (anime proportions) ──
+const bodyMat = new THREE.MeshStandardMaterial({
+  color: 0x1a1a2e,
+  roughness: 0.82,
+  metalness: 0.04
+});
+const body = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.38, 0.52, 0.68, 24),
+  bodyMat
+);
+body.position.y = 0.36;
 body.castShadow = true;
 char.add(body);
 
-// Skirt flare
-const skirtMat = pbrMat(0x1a1a2e, { roughness: 0.85, metalness: 0.02, transparent: true, opacity: 0.9 });
-const skirt = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.35, 24, 1, true), skirtMat);
-skirt.position.y = 0.2;
+// Skirt with layered volume
+const skirtMat = new THREE.MeshStandardMaterial({
+  color: 0x1a1a2e,
+  roughness: 0.88,
+  metalness: 0.02,
+  transparent: true,
+  opacity: 0.92
+});
+const skirt = new THREE.Mesh(
+  new THREE.ConeGeometry(0.55, 0.42, 32, 1, true),
+  skirtMat
+);
+skirt.position.y = 0.18;
 skirt.rotation.x = Math.PI;
 char.add(skirt);
 
-// Collar
-const collarMat = pbrMat(PALETTE.dressAccent, { emissive: PALETTE.dressAccent, emissiveIntensity: 0.1, roughness: 0.3 });
-const collar = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 12, 24), collarMat);
-collar.position.y = 0.74;
-collar.rotation.x = Math.PI / 2 * 0.85;
-char.add(collar);
-
-// Bow at neck
-const bowMat = pbrMat(PALETTE.rose, { roughness: 0.4 });
-for (let i = -1; i <= 1; i += 2) {
-  const bw = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.02), bowMat);
-  bw.position.set(i * 0.07, 0.78, -0.06);
-  bw.rotation.z = i * 0.35;
-  char.add(bw);
-}
-const bowC = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), bowMat);
-bowC.position.set(0, 0.78, -0.06);
-char.add(bowC);
-
-// Neck
+// Neck and collar
 const neckMat = pbrMat(PALETTE.skin, { roughness: 0.5 });
-const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.1, 16), neckMat);
-neck.position.y = 0.84;
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.08, 12), neckMat);
+neck.position.y = 0.82;
 char.add(neck);
 
-// ── Head (slightly larger — anime proportion) ──
-const headMat = pbrMat(PALETTE.skin, { roughness: 0.35 });
-const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 28, 28), headMat);
-head.position.y = 1.04;
+const collarMat = pbrMat(PALETTE.dressAccent, { emissive: PALETTE.dressAccent, emissiveIntensity: 0.08, roughness: 0.25 });
+const collar = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.028, 10, 20), collarMat);
+collar.position.y = 0.78;
+collar.rotation.x = Math.PI / 2 * 0.82;
+char.add(collar);
+
+// ── Head ──
+const headMat = new THREE.MeshStandardMaterial({
+  color: PALETTE.skin,
+  roughness: 0.35,
+  metalness: 0.0,
+  clearcoat: 0.05
+});
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 24), headMat);
+head.position.y = 1.02;
 head.castShadow = true;
 char.add(head);
 
-// ── Anime Hair ──
-function makeHairStrand(xOff, yOff, zOff, w, h, d, color, roughness = 0.9, matFrom) {
-  const m = matFrom || pbrMat(color, { roughness });
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-  mesh.position.set(xOff, yOff, zOff);
-  char.add(mesh);
-  return mesh;
-}
-const hairMat = pbrMat(PALETTE.hair, { roughness: 0.9 });
-const hairHLMat = pbrMat(PALETTE.hairHighlight, { roughness: 0.85 });
-// Main dome
-makeHairStrand(0, 1.04, 0, 0.64, 0.18, 0.64, 0, 0, hairMat);
-makeHairStrand(0, 1.12, 0, 0.58, 0.14, 0.58, 0, 0, hairMat);
-makeHairStrand(0, 1.2, 0, 0.48, 0.12, 0.48, 0, 0, hairHLMat);
-makeHairStrand(0, 1.27, 0, 0.36, 0.1, 0.36, 0, 0, hairHLMat);
-// Ahoge (cowlick)
-const ahogeMat = pbrMat(PALETTE.hairHighlight, { roughness: 0.6, emissive: PALETTE.hairHighlight, emissiveIntensity: 0.15 });
-const ahoge = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.005, 0.1, 6), ahogeMat);
-ahoge.position.set(0, 1.35, -0.08);
-ahoge.rotation.x = -0.3;
-ahoge.rotation.z = 0.08;
-char.add(ahoge);
-// Side strands
-const sideMat = pbrMat(PALETTE.hair, { roughness: 0.85 });
-for (let side = -1; side <= 1; side += 2) {
-  for (let i = 0; i < 3; i++) {
-    const ss = new THREE.Mesh(new THREE.CylinderGeometry(0.02 - i * 0.003, 0.025 - i * 0.004, 0.12 + i * 0.04, 6), sideMat);
-    ss.position.set(side * (0.28 + i * 0.02), 1.0 - i * 0.06, -0.02 + i * 0.02);
-    ss.rotation.z = side * (0.15 + i * 0.05);
-    ss.rotation.x = 0.1;
-    char.add(ss);
-  }
-}
-// Long back hair
-for (let i = 0; i < 4; i++) {
-  const bh = new THREE.Mesh(new THREE.CylinderGeometry(0.03 - i * 0.004, 0.04 - i * 0.005, 0.15 + i * 0.04, 6), hairMat);
-  bh.position.set(-0.1 + i * 0.065, 0.98 - i * 0.04, 0.3 + i * 0.02);
-  bh.rotation.x = -0.1;
-  char.add(bh);
-}
-// Bangs
-const bangMat = pbrMat(PALETTE.hair, { roughness: 0.8 });
-for (let i = 0; i < 5; i++) {
-  const b = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.04), bangMat);
-  b.position.set(-0.12 + i * 0.06, 1.06, -0.31);
-  b.rotation.x = -0.15;
-  char.add(b);
-}
-// Side bangs
-for (let side = -1; side <= 1; side += 2) {
-  const sb = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.04), bangMat);
-  sb.position.set(side * 0.22, 1.04, -0.29);
-  sb.rotation.z = side * 0.2;
-  char.add(sb);
-}
-
 // ── Anime Eyes (large, expressive) ──
-const eyeWhiteMat = pbrMat(PALETTE.eyeWhite, { roughness: 0.1 });
-const irisMat = pbrMat(PALETTE.iris, { emissive: PALETTE.iris, emissiveIntensity: 0.25, roughness: 0.15 });
-const irisInnerMat = pbrMat(PALETTE.irisInner, { emissive: PALETTE.irisInner, emissiveIntensity: 0.15, roughness: 0.1 });
-const pupilMat = pbrMat(PALETTE.pupil, { roughness: 0.1 });
-const highlightMat = pbrMat(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.3, roughness: 0 });
-const lashMat = pbrMat(PALETTE.hair, { roughness: 0.7 });
-
-function buildAnimeEye(x) {
+function buildEye(x, isLeft) {
   const g = new THREE.Group();
-  // Sclera (white)
-  const white = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 24), eyeWhiteMat);
+  const eyeDist = 0.12;
+  
+  // Eye socket
+  const socket = new THREE.Mesh(
+    new THREE.SphereGeometry(0.095, 16, 16),
+    new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.8 })
+  );
+  socket.position.set(x, 1.14, -0.28);
+  g.add(socket);
+  
+  // White of eye
+  const white = new THREE.Mesh(new THREE.SphereGeometry(0.085, 20, 20), eyeMat);
+  white.position.set(x, 1.14, -0.255);
   g.add(white);
+  
   // Iris (large)
-  const irisOuter = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 20), irisMat);
-  irisOuter.position.z = 0.04;
-  g.add(irisOuter);
-  // Inner iris gradient
-  const irisInner = new THREE.Mesh(new THREE.SphereGeometry(0.055, 20, 20), irisInnerMat);
-  irisInner.position.z = 0.06;
+  const iris = new THREE.Mesh(new THREE.SphereGeometry(0.052, 16, 16), irisMat);
+  iris.position.set(x, 1.14, -0.23);
+  g.add(iris);
+  
+  // Iris inner (gradient)
+  const irisInner = new THREE.Mesh(new THREE.SphereGeometry(0.038, 16, 16), 
+    new THREE.MeshStandardMaterial({
+      color: PALETTE.irisInner,
+      emissive: PALETTE.irisInner,
+      emissiveIntensity: 0.2,
+      roughness: 0.08
+    })
+  );
+  irisInner.position.set(x, 1.14, -0.21);
   g.add(irisInner);
+  
   // Pupil
-  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 12), pupilMat);
-  pupil.position.z = 0.08;
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 10), 
+    new THREE.MeshStandardMaterial({ color: PALETTE.pupil, roughness: 0.08 })
+  );
+  pupil.position.set(x, 1.14, -0.195);
   g.add(pupil);
-  // Catchlight / highlight (top-left)
-  const hl = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), highlightMat);
-  hl.position.set(-0.025, 0.025, 0.09);
-  g.add(hl);
-  const hl2 = new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 6), highlightMat);
-  hl2.position.set(0.02, -0.02, 0.09);
-  g.add(hl2);
-  // Eyelashes (upper)
-  for (let i = -3; i <= 3; i++) {
-    const lash = new THREE.Mesh(new THREE.BoxGeometry(0.007, 0.004, 0.025), lashMat);
-    const angle = i * 0.2;
-    lash.position.set(Math.sin(angle) * 0.08, Math.cos(angle) * 0.08, 0.04);
-    lash.rotation.z = angle * 0.3;
-    g.add(lash);
-  }
-  // Upper lid
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.015, 0.04), pbrMat(PALETTE.skin, { roughness: 0.5 }));
-  lid.position.y = 0.05;
-  lid.position.z = 0.02;
+  
+  // Upper eyelid
+  const lid = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.055, 0.018, 12),
+    new THREE.MeshStandardMaterial({ color: PALETTE.skin, roughness: 0.5 })
+  );
+  lid.position.set(x, 1.18, -0.23);
+  lid.rotation.x = 0.3;
   g.add(lid);
-  // Lower lid
-  const lower = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.008, 0.03), pbrMat(PALETTE.skin, { roughness: 0.5 }));
-  lower.position.y = -0.045;
-  lower.position.z = 0.02;
-  g.add(lower);
-  g.position.set(x, 1.12, -0.28);
-  return g;
+  
+  // Lower eyelid
+  const lowerLid = new THREE.Mesh(
+    new THREE.BoxGeometry(0.055, 0.008, 0.03),
+    new THREE.MeshStandardMaterial({ color: PALETTE.skin, roughness: 0.5 })
+  );
+  lowerLid.position.set(x, 1.11, -0.22);
+  g.add(lowerLid);
+  
+  // Catchlights (multiple for anime look)
+  const hl1 = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
+  );
+  hl1.position.set(x - 0.025, 1.145, -0.205);
+  g.add(hl1);
+  
+  const hl2 = new THREE.Mesh(new THREE.SphereGeometry(0.006, 4, 4),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 })
+  );
+  hl2.position.set(x + 0.015, 1.155, -0.21);
+  g.add(hl2);
+  
+  return { group: g, iris, pupil, hl1, hl2 };
 }
-const lEye = buildAnimeEye(-0.12);
-const rEye = buildAnimeEye(0.12);
-char.add(lEye);
-char.add(rEye);
+
+const lEye = buildEye(-0.14, true);
+const rEye = buildEye(0.14, false);
+char.add(lEye.group, rEye.group);
 
 // Eyebrows
 const browMat = pbrMat(PALETTE.hair, { roughness: 0.7 });
-const lBrow = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.015, 0.015), browMat);
-lBrow.position.set(-0.13, 1.2, -0.3);
-lBrow.rotation.z = -0.05;
-char.add(lBrow);
-const rBrow = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.015, 0.015), browMat);
-rBrow.position.set(0.13, 1.2, -0.3);
-rBrow.rotation.z = 0.05;
-char.add(rBrow);
+const lBrow = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.014, 0.014), browMat);
+lBrow.position.set(-0.14, 1.21, -0.3);
+lBrow.rotation.z = -0.03;
+const rBrow = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.014, 0.014), browMat);
+rBrow.position.set(0.14, 1.21, -0.3);
+rBrow.rotation.z = 0.03;
+char.add(lBrow, rBrow);
 
 // Blush
-const blushMat = pbrMat(PALETTE.blush, { transparent: true, opacity: 0.25, roughness: 0.9 });
+const blushMat = pbrMat(PALETTE.blush, { transparent: true, opacity: 0.28, roughness: 0.85 });
 for (let side = -1; side <= 1; side += 2) {
-  const bl = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 10), blushMat);
-  bl.position.set(side * 0.15, 0.99, -0.3);
-  bl.scale.set(1.3, 0.5, 0.4);
+  const bl = new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 10), blushMat);
+  bl.position.set(side * 0.145, 0.995, -0.3);
+  bl.scale.set(1.35, 0.55, 0.4);
   char.add(bl);
 }
 
-// ── Mouth (anime style — small, cute) ──
+// Mouth
 const mouthGroup = new THREE.Group();
-mouthGroup.position.set(0, 0.98, -0.3);
-const lipMat = pbrMat(PALETTE.lip, { roughness: 0.3 });
-const lipUpper = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 10), lipMat);
-lipUpper.scale.set(1.1, 0.2, 0.3);
-lipUpper.position.y = 0.003;
+mouthGroup.position.set(0, 0.96, -0.3);
+const lipMat = pbrMat(PALETTE.lip, { roughness: 0.32 });
+const lipUpper = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 10), lipMat);
+lipUpper.scale.set(1.15, 0.22, 0.32);
+lipUpper.position.y = 0.002;
 mouthGroup.add(lipUpper);
-const lipLower = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 10), lipMat);
-lipLower.scale.set(0.9, 0.15, 0.25);
-lipLower.position.y = -0.003;
+const lipLower = new THREE.Mesh(new THREE.SphereGeometry(0.023, 10, 10), lipMat);
+lipLower.scale.set(0.95, 0.17, 0.28);
+lipLower.position.y = -0.002;
 mouthGroup.add(lipLower);
 char.add(mouthGroup);
 
-// ── Arms with puff sleeves ──
-const armMat = pbrMat(PALETTE.skin, { roughness: 0.5 });
-const sleeveMat = pbrMat(0x1a1a2e, { roughness: 0.85 });
+// ── Arms with sleeves ──
 function makeArm(x, rot) {
   const g = new THREE.Group();
-  // Upper arm
-  const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.3, 10), armMat);
-  upper.position.y = 0.15;
+  const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.045, 0.28, 12), skinMat);
+  upper.position.y = 0.12;
   upper.castShadow = true;
   g.add(upper);
-  // Puff sleeve (shoulder)
-  const sleeve = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), sleeveMat);
-  sleeve.position.y = 0.28;
-  sleeve.scale.set(1, 0.5, 1);
+  
+  // Sleeve puff
+  const sleeve = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), bodyMat);
+  sleeve.position.set(0, 0.22, 0);
+  sleeve.scale.set(1, 0.45, 1);
   g.add(sleeve);
+  
   // Hand
-  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), armMat);
-  hand.position.y = 0.3;
+  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), skinMat);
+  hand.position.set(0, 0.28, 0);
   g.add(hand);
-  g.position.set(x, 0.58, 0);
+  
+  g.position.set(x, 0.52, 0);
   g.rotation.z = rot;
   char.add(g);
-  return { group: g, hand };
+  return g;
 }
-const lArmG = makeArm(-0.46, 0.18);
-const rArmG = makeArm(0.46, -0.18);
-
-// ── Floating accessories ──
-const orbMat = pbrMat(PALETTE.violet, { emissive: PALETTE.violet, emissiveIntensity: 0.5, transparent: true, opacity: 0.3 });
-const orb = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 12), orbMat);
-orb.position.set(0.15, 0.15, 0.25);
-char.add(orb);
-const orb2 = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), orbMat.clone());
-orb2.material.color.setHex(PALETTE.gold);
-orb2.material.emissive.setHex(PALETTE.gold);
-orb2.position.set(-0.12, 0.1, 0.28);
-char.add(orb2);
+const lArm = makeArm(-0.48, 0.18);
+const rArm = makeArm(0.48, -0.18);
 
 scene.add(char);
 
 // ── Expressions ──
 const EXPR = {
-  idle:     { s: 0.25, bL: -0.05, bR: 0.05, eO: 1,   hT: 0,   aS: 0.4, eI: 0.15 },
-  happy:    { s: 0.7,  bL: -0.1,  bR: 0.1,  eO: 1.15, hT: 0.03, aS: 0.7, eI: 0.35 },
-  thinking: { s: 0.1,  bL: 0.1,   bR: -0.08, eO: 0.65, hT: 0.06, aS: 0.15, eI: 0.2 },
-  sad:      { s: -0.15, bL: 0.06, bR: 0.06, eO: 0.55, hT: -0.04, aS: 0.2, eI: 0.1 },
-  speaking: { s: 0.4,  bL: -0.02, bR: 0.02, eO: 1,   hT: 0.02, aS: 0.55, eI: 0.25 },
-  listening:{ s: 0.2,  bL: 0.02,  bR: 0.02, eO: 0.9, hT: 0.02, aS: 0.35, eI: 0.2 },
-  excited:  { s: 0.85, bL: -0.14, bR: 0.14, eO: 1.3, hT: 0.07, aS: 0.95, eI: 0.55 },
-  error:    { s: -0.2, bL: 0.05,  bR: 0.05, eO: 0.5, hT: -0.03, aS: 0.15, eI: 0.1 },
+  idle:     { s: 0.22, bL: -0.03, bR: 0.03, eO: 1,    hT: 0,   aS: 0.35, eI: 0.12, label: 'zoraasi' },
+  happy:    { s: 0.65, bL: -0.08, bR: 0.08, eO: 1.12, hT: 0.02, aS: 0.65, eI: 0.28, label: 'zoraasi' },
+  thinking: { s: 0.08, bL: 0.08,  bR: -0.06, eO: 0.58, hT: 0.05, aS: 0.12, eI: 0.18, label: '·' },
+  sad:      { s: -0.12, bL: 0.06,  bR: 0.06, eO: 0.52, hT: -0.02, aS: 0.15, eI: 0.08, label: '·' },
+  speaking: { s: 0.35, bL: 0,     bR: 0,     eO: 0.95, hT: 0.01, aS: 0.45, eI: 0.22, label: 'zoraasi' },
+  listening:{ s: 0.18, bL: 0.02,  bR: 0.02,  eO: 0.88, hT: 0.01, aS: 0.28, eI: 0.15, label: 'zoraasi' },
+  excited:  { s: 0.78, bL: -0.11, bR: 0.11, eO: 1.22, hT: 0.05, aS: 0.85, eI: 0.42, label: 'zoraasi' },
+  error:    { s: -0.18, bL: 0.05,  bR: 0.05, eO: 0.48, hT: -0.02, aS: 0.12, eI: 0.08, label: '·' },
 };
+
 let curExpr = 'idle';
 let exprT = 1;
 const TARGET = { ...EXPR.idle };
@@ -352,36 +362,221 @@ function setExpression(name) {
 
 // ── Scenes ──
 const sceneDefs = {
-  chamber: { bg: [0x06070b, 0x0e0f17], fogD: 0.04, floorC: PALETTE.panel },
-  cafe:    { bg: [0x141010, 0x1a1410], fogD: 0.055, floorC: { r: 0.12, g: 0.08, b: 0.06 } },
-  garden:  { bg: [0x081410, 0x101a12], fogD: 0.05, floorC: { r: 0.06, g: 0.12, b: 0.08 } },
-  study:   { bg: [0x0a0810, 0x120e1a], fogD: 0.045, floorC: PALETTE.panel },
-  observatory: { bg: [0x04060e, 0x080a18], fogD: 0.03, floorC: 0x080a18 },
+  chamber: { bg: [0x06070b, 0x0e0f17], fogD: 0.045, floorC: PALETTE.panel, amb: 0.55 },
+  cafe:    { bg: [0x141010, 0x1a1410], fogD: 0.055, floorC: { r: 0.12, g: 0.08, b: 0.06 }, amb: 0.52 },
+  garden:  { bg: [0x081410, 0x101a12], fogD: 0.05, floorC: { r: 0.06, g: 0.12, b: 0.08 }, amb: 0.5 },
+  study:   { bg: [0x0a0810, 0x120e1a], fogD: 0.045, floorC: PALETTE.panel, amb: 0.53 },
+  observatory: { bg: [0x04060e, 0x080a18], fogD: 0.032, floorC: 0x080a18, amb: 0.45 },
 };
 let curScene = 'chamber';
-
-// Scene VFX
-let sceneParticles = null;
+let sceneVFX = null;
 
 function buildScene(name) {
   const cfg = sceneDefs[name];
   if (!cfg) return;
-  const keep = new Set([char, key, fill, rim, accent, ambient]);
+  const keep = new Set([char, keyLight, fillLight, rimLight, accentLight, ambient]);
   for (let i = scene.children.length - 1; i >= 0; i--) {
     const c = scene.children[i];
     if (!keep.has(c)) scene.remove(c);
   }
-  sceneParticles = null;
+  if (sceneVFX) { scene.remove(sceneVFX); sceneVFX = null; }
   scene.background = new THREE.Color(cfg.bg[0]);
   scene.fog = new THREE.FogExp2(cfg.bg[0], cfg.fogD);
-  const flMat = new THREE.MeshStandardMaterial({ color: cfg.floorC, roughness: 0.9, metalness: 0.05, transparent: true, opacity: 0.5 });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), flMat);
+  ambient.intensity = cfg.amb;
+  
+  const flMat = new THREE.MeshStandardMaterial({ 
+    color: cfg.floorC, 
+    roughness: 0.92, 
+    metalness: 0.03,
+    transparent: true, 
+    opacity: 0.48
+  });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), flMat);
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -0.06;
+  floor.position.y = -0.08;
   floor.receiveShadow = true;
   scene.add(floor);
-  const fns = { chamber: chamberDecor, cafe: cafeDecor, garden: gardenDecor, study: studyDecor, observatory: observatoryDecor };
-  (fns[name] || chamberDecor)();
+  
+  const sceneFns = { chamber: chamberDecor, cafe: cafeDecor, garden: gardenDecor, study: studyDecor, observatory: observatoryDecor };
+  (sceneFns[name] || chamberDecor)();
+}
+
+// Scene decorators
+function chamberDecor() {
+  const cnt = 45;
+  const pos = new Float32Array(cnt * 3);
+  const sizes = new Float32Array(cnt);
+  for (let i = 0; i < cnt; i++) {
+    pos[i*3] = (Math.random() - 0.5) * 4.5;
+    pos[i*3+1] = Math.random() * 2.2;
+    pos[i*3+2] = (Math.random() - 0.5) * 4;
+    sizes[i] = 0.004 + Math.random() * 0.008;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  const mat = new THREE.PointsMaterial({
+    color: PALETTE.violet, size: 0.008, transparent: true, opacity: 0.28,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  sceneVFX = new THREE.Points(geo, mat);
+  scene.add(sceneVFX);
+  
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    const r = 1.6;
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.28, 8),
+      new THREE.MeshStandardMaterial({ color: PALETTE.panel, roughness: 0.78, metalness: 0.18, transparent: true, opacity: 0.4 }));
+    p.position.set(Math.cos(a) * r, 0.14, Math.sin(a) * r);
+    scene.add(p);
+  }
+}
+
+function cafeDecor() {
+  const cnt = 35;
+  const pos = new Float32Array(cnt * 3);
+  for (let i = 0; i < cnt; i++) {
+    pos[i*3] = (Math.random() - 0.5) * 3.5;
+    pos[i*3+1] = Math.random() * 1.8;
+    pos[i*3+2] = (Math.random() - 0.5) * 3;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color: PALETTE.amber, size: 0.006, transparent: true, opacity: 0.35,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  sceneVFX = new THREE.Points(geo, mat);
+  scene.add(sceneVFX);
+  
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12),
+    new THREE.MeshStandardMaterial({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.6 }));
+  lamp.position.set(1.1, 0.32, 0.7);
+  scene.add(lamp);
+  
+  const tMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.91 });
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.22, 0.025, 12), tMat);
+  top.position.set(0.75, 0.07, 0.45); top.castShadow = true; scene.add(top);
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), tMat);
+  leg.position.set(0.75, 0.005, 0.45); scene.add(leg);
+}
+
+function gardenDecor() {
+  const cnt = 55;
+  const pos = new Float32Array(cnt * 3);
+  for (let i = 0; i < cnt; i++) {
+    pos[i*3] = (Math.random() - 0.5) * 4;
+    pos[i*3+1] = Math.random() * 1.5;
+    pos[i*3+2] = (Math.random() - 0.5) * 4;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color: PALETTE.teal, size: 0.005, transparent: true, opacity: 0.3,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  sceneVFX = new THREE.Points(geo, mat);
+  scene.add(sceneVFX);
+  
+  function tree(x, z, s = 1) {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.022*s, 0.032*s, 0.22*s, 6),
+      new THREE.MeshStandardMaterial({ color: 0x2a1a10 }));
+    trunk.position.set(x, 0.07*s, z); scene.add(trunk);
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.1 * s, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x1a3a1a, roughness: 0.88 }));
+    leaf.position.set(x, 0.18*s, z); scene.add(leaf);
+  }
+  tree(1.0, 0.6, 1.1); tree(-0.85, -0.45, 1); tree(0.45, -0.85, 0.85);
+  
+  const colors = [PALETTE.amber, PALETTE.violet, PALETTE.rose, PALETTE.teal];
+  for (let i = 0; i < 14; i++) {
+    const x = (Math.random() - 0.5) * 3.5;
+    const z = (Math.random() - 0.5) * 3.5;
+    if (Math.hypot(x, z) < 0.4) continue;
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.012, 4, 4),
+      new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * 4)] }));
+    f.position.set(x, 0.008, z); scene.add(f);
+  }
+  
+  const vineMat = new THREE.MeshStandardMaterial({ color: 0x1a2a1a, transparent: true, opacity: 0.35 });
+  for (let i = 0; i < 4; i++) {
+    const x = (Math.random() - 0.5) * 2.8;
+    const v = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.004, 0.12 + Math.random()*0.12, 4), vineMat);
+    v.position.set(x, 0.16, -1.1); scene.add(v);
+  }
+}
+
+function studyDecor() {
+  const cnt = 25;
+  const pos = new Float32Array(cnt * 3);
+  for (let i = 0; i < cnt; i++) {
+    pos[i*3] = (Math.random() - 0.5) * 3;
+    pos[i*3+1] = Math.random() * 1.2;
+    pos[i*3+2] = (Math.random() - 0.5) * 3;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color: PALETTE.gold, size: 0.004, transparent: true, opacity: 0.25,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  sceneVFX = new THREE.Points(geo, mat);
+  scene.add(sceneVFX);
+  
+  function shelf(x, z) {
+    const sMat = new THREE.MeshStandardMaterial({ color: 0x1a1228, roughness: 0.92 });
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.32, 0.05), sMat);
+    s.position.set(x, 0.15, z); scene.add(s);
+    const bColors = [PALETTE.amber, PALETTE.violet, PALETTE.rose, PALETTE.teal, 0x3a2a5a, 0x5a3a2a];
+    for (let i = 0; i < 4; i++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.05, 0.018),
+        new THREE.MeshStandardMaterial({ color: bColors[i % bColors.length] }));
+      b.position.set(x - 0.075 + i * 0.035, 0.16, z - 0.035); scene.add(b);
+    }
+  }
+  shelf(1.0, 0.55); shelf(-0.85, -0.35);
+  
+  const dl = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8),
+    new THREE.MeshStandardMaterial({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.25 }));
+  dl.position.set(0.45, 0.085, -0.25); scene.add(dl);
+}
+
+function observatoryDecor() {
+  const starCnt = 400;
+  const pos = new Float32Array(starCnt * 3);
+  for (let i = 0; i < starCnt * 3; i++) pos[i] = (Math.random() - 0.5) * 18;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.006, transparent: true, opacity: 0.45 });
+  const stars = new THREE.Points(geo, mat);
+  stars.position.y = 1.8; scene.add(stars);
+  
+  const sp = sparkleParticles(60, 0xffffff, 0.012, 5);
+  sceneVFX = sp.group;
+  scene.add(sceneVFX);
+  sp.update = () => {
+    const pos = sp.group.geometry.attributes.position.array;
+    for (let i = 0; i < sp.vel.length; i++) {
+      pos[i*3] += sp.vel[i].x;
+      pos[i*3+1] -= sp.vel[i].y;
+      pos[i*3+2] += sp.vel[i].z;
+      if (pos[i*3+1] < -0.5) { pos[i*3+1] = 2; pos[i*3] = (Math.random() - 0.5) * 5; pos[i*3+2] = (Math.random() - 0.5) * 5; }
+    }
+    sp.group.geometry.attributes.position.needsUpdate = true;
+  };
+  
+  function constel(pts, col = PALETTE.amber) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts.flat()), 3));
+    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.12, depthWrite: false }));
+    l.position.y = 0.95; scene.add(l);
+  }
+  constel([[-0.5,0.5,-1], [0,0.8,-1.2], [0.5,0.5,-1], [0.8,0.2,-0.8]]);
+  constel([[-0.3,-0.2,-1.5], [0.2,0,-1.3], [0.5,-0.3,-1.4], [0.1,-0.5,-1.6]], PALETTE.violet);
+  
+  const orbMat = new THREE.MeshBasicMaterial({ color: PALETTE.violet, transparent: true, opacity: 0.04, side: THREE.DoubleSide, depthWrite: false });
+  const orb = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.58, 64), orbMat);
+  orb.position.y = 0.45; scene.add(orb);
 }
 
 function sparkleParticles(count, color, size, spread) {
@@ -389,170 +584,25 @@ function sparkleParticles(count, color, size, spread) {
   const vel = [];
   for (let i = 0; i < count; i++) {
     pos[i*3] = (Math.random() - 0.5) * spread;
-    pos[i*3+1] = Math.random() * 2.5;
+    pos[i*3+1] = Math.random() * 1.8;
     pos[i*3+2] = (Math.random() - 0.5) * spread;
-    vel.push({ x: (Math.random() - 0.5) * 0.002, y: 0.002 + Math.random() * 0.005, z: (Math.random() - 0.5) * 0.002 });
+    vel.push({ x: (Math.random() - 0.5) * 0.003, y: 0.003 + Math.random() * 0.004, z: (Math.random() - 0.5) * 0.003 });
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false });
+  const mat = new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
   const pts = new THREE.Points(geo, mat);
-  scene.add(pts);
-  return { pts, vel, spread };
-}
-
-function chamberDecor() {
-  const p = sparkleParticles(60, PALETTE.violet, 0.01, 4);
-  sceneParticles = () => {
-    const pos = p.pts.geometry.attributes.position.array;
-    for (let i = 0; i < p.vel.length; i++) {
-      pos[i*3] += p.vel[i].x;
-      pos[i*3+1] += p.vel[i].y;
-      pos[i*3+2] += p.vel[i].z;
-      if (pos[i*3+1] > 2.5) pos[i*3+1] = 0;
-      if (Math.abs(pos[i*3]) > p.spread / 2) p.vel[i].x *= -1;
-      if (Math.abs(pos[i*3+2]) > p.spread / 2) p.vel[i].z *= -1;
+  pts.userData.update = () => {
+    const pos = pts.geometry.attributes.position.array;
+    for (let i = 0; i < vel.length; i++) {
+      pos[i*3] += vel[i].x; pos[i*3+1] += vel[i].y; pos[i*3+2] += vel[i].z;
+      if (pos[i*3+1] > 2.2) pos[i*3+1] = 0;
+      if (Math.abs(pos[i*3]) > spread * 0.45) vel[i].x *= -1;
+      if (Math.abs(pos[i*3+2]) > spread * 0.45) vel[i].z *= -1;
     }
-    p.pts.geometry.attributes.position.needsUpdate = true;
+    pts.geometry.attributes.position.needsUpdate = true;
   };
-  for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2 + Math.PI / 4;
-    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.3, 8),
-      new THREE.MeshStandardMaterial({ color: PALETTE.panel, roughness: 0.8, metalness: 0.2, transparent: true, opacity: 0.5 }));
-    p.position.set(Math.cos(a) * 1.8, 0.12 + 0.15, Math.sin(a) * 1.8);
-    scene.add(p);
-  }
-}
-
-function cafeDecor() {
-  const p = sparkleParticles(40, PALETTE.amber, 0.008, 3);
-  sceneParticles = () => {
-    const pos = p.pts.geometry.attributes.position.array;
-    for (let i = 0; i < p.vel.length; i++) {
-      pos[i*3] += p.vel[i].x;
-      pos[i*3+1] += p.vel[i].y;
-      pos[i*3+2] += p.vel[i].z;
-      if (pos[i*3+1] > 2.5) pos[i*3+1] = 0;
-      if (Math.abs(pos[i*3]) > p.spread / 2) p.vel[i].x *= -1;
-      if (Math.abs(pos[i*3+2]) > p.spread / 2) p.vel[i].z *= -1;
-    }
-    p.pts.geometry.attributes.position.needsUpdate = true;
-  };
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12),
-    new THREE.MeshStandardMaterial({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.8 }));
-  lamp.position.set(1.2, 0.35, 0.8);
-  scene.add(lamp);
-  const tMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.9 });
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 0.03, 12), tMat);
-  top.position.set(0.8, 0.08, 0.5); top.castShadow = true; scene.add(top);
-  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.12, 6), tMat);
-  leg.position.set(0.8, 0.01, 0.5); scene.add(leg);
-  const top2 = top.clone(); top2.position.set(-0.7, 0.08, -0.4); scene.add(top2);
-  const leg2 = leg.clone(); leg2.position.set(-0.7, 0.01, -0.4); scene.add(leg2);
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12),
-    new THREE.MeshBasicMaterial({ color: PALETTE.amber, transparent: true, opacity: 0.04 }));
-  glow.position.set(1.2, 0.3, 0.8); scene.add(glow);
-}
-
-function gardenDecor() {
-  const p = sparkleParticles(80, PALETTE.teal, 0.006, 4);
-  sceneParticles = () => {
-    const pos = p.pts.geometry.attributes.position.array;
-    for (let i = 0; i < p.vel.length; i++) {
-      pos[i*3] += p.vel[i].x * 0.5;
-      pos[i*3+1] += p.vel[i].y;
-      pos[i*3+2] += p.vel[i].z * 0.5;
-      if (pos[i*3+1] > 2.5) pos[i*3+1] = 0;
-    }
-    p.pts.geometry.attributes.position.needsUpdate = true;
-  };
-  function tree(x, z, s = 1) {
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.025*s, 0.035*s, 0.25*s, 6),
-      new THREE.MeshStandardMaterial({ color: 0x2a1a10 }));
-    trunk.position.set(x, 0.08*s, z); scene.add(trunk);
-    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.12*s, 6, 6),
-      new THREE.MeshStandardMaterial({ color: 0x1a3a1a, roughness: 0.9 }));
-    leaf.position.set(x, 0.22*s, z); scene.add(leaf);
-  }
-  tree(1.0, 0.6, 1.2); tree(-0.9, -0.5, 1); tree(0.5, -0.9, 0.8);
-  const colors = [PALETTE.amber, PALETTE.violet, PALETTE.rose, PALETTE.teal];
-  for (let i = 0; i < 16; i++) {
-    const x = (Math.random() - 0.5) * 3;
-    const z = (Math.random() - 0.5) * 3;
-    if (Math.hypot(x, z) < 0.5) continue;
-    const f = new THREE.Mesh(new THREE.SphereGeometry(0.015, 4, 4),
-      new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * 4)] }));
-    f.position.set(x, 0.01, z); scene.add(f);
-  }
-  const vineMat = new THREE.MeshStandardMaterial({ color: 0x1a2a1a, transparent: true, opacity: 0.4 });
-  for (let i = 0; i < 6; i++) {
-    const x = (Math.random() - 0.5) * 2.5;
-    const v = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.005, 0.1 + Math.random()*0.15, 4), vineMat);
-    v.position.set(x, 0.18, -1.2); scene.add(v);
-  }
-}
-
-function studyDecor() {
-  const p = sparkleParticles(30, PALETTE.gold, 0.005, 3);
-  sceneParticles = () => {
-    const pos = p.pts.geometry.attributes.position.array;
-    for (let i = 0; i < p.vel.length; i++) {
-      pos[i*3] += p.vel[i].x;
-      pos[i*3+1] += p.vel[i].y;
-      pos[i*3+2] += p.vel[i].z;
-      if (pos[i*3+1] > 2.5) pos[i*3+1] = 0;
-    }
-    p.pts.geometry.attributes.position.needsUpdate = true;
-  };
-  function shelf(x, z) {
-    const sMat = new THREE.MeshStandardMaterial({ color: 0x1a1228, roughness: 0.9 });
-    const s = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.35, 0.06), sMat);
-    s.position.set(x, 0.17, z); scene.add(s);
-    const bColors = [PALETTE.amber, PALETTE.violet, PALETTE.rose, PALETTE.teal, 0x3a2a5a, 0x5a3a2a];
-    for (let i = 0; i < 5; i++) {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.06, 0.02),
-        new THREE.MeshStandardMaterial({ color: bColors[i % bColors.length] }));
-      b.position.set(x - 0.09 + i * 0.045, 0.18, z - 0.04); scene.add(b);
-    }
-  }
-  shelf(1.0, 0.6); shelf(-0.9, -0.4);
-  const dl = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8),
-    new THREE.MeshStandardMaterial({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.3 }));
-  dl.position.set(0.5, 0.1, -0.3); scene.add(dl);
-}
-
-function observatoryDecor() {
-  const starCount = 300;
-  const pos = new Float32Array(starCount * 3);
-  for (let i = 0; i < starCount * 3; i++) pos[i] = (Math.random() - 0.5) * 20;
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.008, transparent: true, opacity: 0.5 });
-  const stars = new THREE.Points(geo, mat);
-  stars.position.y = 2; scene.add(stars);
-  // Shooting star particles
-  const sp = sparkleParticles(50, 0xffffff, 0.015, 6);
-  sceneParticles = () => {
-    const pos = sp.pts.geometry.attributes.position.array;
-    for (let i = 0; i < sp.vel.length; i++) {
-      pos[i*3] += sp.vel[i].x * 0.8;
-      pos[i*3+1] -= sp.vel[i].y * 0.3;
-      pos[i*3+2] += sp.vel[i].z;
-      if (pos[i*3+1] < -0.5) { pos[i*3+1] = 2; pos[i*3] = (Math.random() - 0.5) * sp.spread; pos[i*3+2] = (Math.random() - 0.5) * sp.spread; }
-    }
-    sp.pts.geometry.attributes.position.needsUpdate = true;
-  };
-  function constel(pts, col = PALETTE.amber) {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts.flat()), 3));
-    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.15, depthWrite: false }));
-    l.position.y = 1; scene.add(l);
-  }
-  constel([[-0.5,0.5,-1], [0,0.8,-1.2], [0.5,0.5,-1], [0.8,0.2,-0.8]]);
-  constel([[-0.3,-0.2,-1.5], [0.2,0,-1.3], [0.5,-0.3,-1.4], [0.1,-0.5,-1.6]], PALETTE.violet);
-  const orbMat = new THREE.MeshBasicMaterial({ color: PALETTE.violet, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false });
-  const orb = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.62, 64), orbMat);
-  orb.position.y = 0.5; scene.add(orb);
+  return { group: pts, vel, spread, update: null };
 }
 
 buildScene('chamber');
@@ -565,11 +615,10 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   time += dt;
-
-  if (sceneParticles) sceneParticles();
-
-  // Expression blend
-  exprT = Math.min(1, exprT + dt * 2.5);
+  
+  if (sceneVFX?.userData?.update) sceneVFX.userData.update();
+  
+  exprT = Math.min(1, exprT + dt * 2.2);
   const e0 = TARGET;
   const e1 = EXPR[curExpr] || EXPR.idle;
   const t = exprT < 0.5 ? 2 * exprT * exprT : 1 - (-2 * exprT + 2) ** 2 / 2;
@@ -581,72 +630,50 @@ function animate() {
   const aS = e0.aS + (e1.aS - e0.aS) * t;
   const eI = e0.eI + (e1.eI - e0.eI) * t;
   if (exprT >= 0.99) Object.assign(TARGET, e1);
-
-  // Mouth
-  const sm = 1 + s * 0.4;
-  lipUpper.scale.x = 1.1 * (0.5 + 0.5 * sm);
-  lipUpper.scale.y = 0.2 * (s > 0 ? 1 + s * 0.5 : Math.max(0.2, 1 + s * 0.8));
-  lipLower.scale.x = 0.9 * (0.5 + 0.5 * sm);
-  lipLower.scale.y = 0.15 * (s > 0 ? 1 + s * 0.3 : Math.max(0.15, 1 + s * 0.6));
-  mouthGroup.position.y = 0.98 - s * 0.008;
-
-  // Eyebrows
+  
+  const sm = 1 + s * 0.35;
+  lipUpper.scale.x = 1.15 * (0.5 + 0.5 * sm);
+  lipUpper.scale.y = 0.22 * (s > 0 ? 1 + s * 0.45 : Math.max(0.2, 1 + s * 0.7));
+  lipLower.scale.x = 0.95 * (0.5 + 0.5 * sm);
+  mouthGroup.position.y = 0.96 - s * 0.006;
+  
   lBrow.rotation.z = bL;
   rBrow.rotation.z = bR;
-
-  // Blink
-  const blink = Math.max(0.1, 1 - (Math.sin(time * 3) > 0.94 ? (Math.sin(time * 3) - 0.94) * 17 : 0));
+  
+  const blink = Math.max(0.15, 1 - (Math.sin(time * 2.8) > 0.93 ? (Math.sin(time * 2.8) - 0.93) * 15 : 0));
   const eyeScale = blink * eO;
-  lEye.scale.y = eyeScale;
-  rEye.scale.y = eyeScale;
-
-  // Head tilt
+  lEye.group.scale.y = eyeScale;
+  rEye.group.scale.y = eyeScale;
+  
   char.rotation.z = hT;
-
-  // Ahoge bounce
-  ahoge.rotation.x = -0.3 + Math.sin(time * 2) * 0.05;
-  ahoge.rotation.z = 0.08 + Math.sin(time * 1.7) * 0.04;
-
-  // Breathing
-  const breathe = Math.sin(time * 1.1) * 0.002 * (0.5 + aS * 0.5);
-  body.position.y = 0.38 + breathe;
-  head.position.y = 1.04 + breathe;
-  neck.position.y = 0.84 + breathe;
-
-  // Arm sway + speaking gesture
-  const speakJitter = curExpr === 'speaking' || curExpr === 'excited' ? Math.sin(time * 8) * 0.03 * aS : 0;
-  const armSway = Math.sin(time * 0.7) * 0.025 * aS + speakJitter;
-  lArmG.group.rotation.z = 0.18 + armSway;
-  rArmG.group.rotation.z = -0.18 - armSway;
-
-  // Floating orbs
-  orb.position.y = 0.15 + Math.sin(time * 1.3) * 0.04;
-  orb.position.x = 0.15 + Math.sin(time * 0.8) * 0.02;
-  orb2.position.y = 0.1 + Math.sin(time * 1.7 + 1) * 0.03;
-  orb2.position.x = -0.12 + Math.sin(time * 0.9 + 1) * 0.02;
-
-  // Glow rings
-  const gIntensity = 0.15 + eI + Math.sin(time * 0.5) * 0.08;
-  gRing.material.emissiveIntensity = Math.max(0, gIntensity);
-  gRing2.material.emissiveIntensity = Math.max(0, 0.2 + eI * 0.5 + Math.sin(time * 0.7 + 1) * 0.1);
-  gRing.rotation.z = Math.sin(time * 0.15) * 0.05;
-  gRing2.rotation.z = Math.sin(time * 0.12 + 0.5) * 0.08;
-
-  // Pedestal slow rotation
-  ped.rotation.y = time * 0.04;
-  gRing.rotation.y = time * 0.1;
-  gRing2.rotation.y = time * 0.08;
-
-  // Camera orbit
-  const cTheta = Math.sin(time * 0.025) * 0.2;
-  camera.position.x = Math.sin(cTheta) * 6.2;
-  camera.position.z = Math.cos(cTheta) * 6.2;
-  camera.position.y = 2.5 + Math.sin(time * 0.015) * 0.08 + (curExpr === 'excited' ? 0.05 : 0);
+  
+  const breathe = Math.sin(time * 1.2) * 0.0025 * (0.5 + aS * 0.5);
+  body.position.y = 0.36 + breathe;
+  head.position.y = 1.02 + breathe;
+  neck.position.y = 0.82 + breathe;
+  
+  const armSway = Math.sin(time * 0.8) * 0.02 * aS;
+  lArm.rotation.z = 0.18 + armSway;
+  rArm.rotation.z = -0.18 - armSway;
+  
+  glowOrb1.position.y = 0.08 + Math.sin(time * 1.4) * 0.03;
+  glowOrb1.position.x = 0.22 + Math.sin(time * 1.1) * 0.015;
+  glowOrb2.position.y = 0.05 + Math.sin(time * 1.6 + 0.5) * 0.02;
+  glowOrb2.position.x = -0.18 + Math.sin(time * 1.3 + 0.5) * 0.012;
+  
+  const glowInt = 0.12 + eI + Math.sin(time * 0.4) * 0.05;
+  bloom.strength = 0.15 + eI * 0.12;
+  
+  pedestal.rotation.y = time * 0.03;
+  glowOrb1.rotation.y = time * 0.08;
+  glowOrb2.rotation.y = time * 0.06;
+  
+  const cTheta = Math.sin(time * 0.022) * 0.15;
+  camera.position.x = Math.sin(cTheta) * 5.9;
+  camera.position.z = Math.cos(cTheta) * 5.9;
+  camera.position.y = 2.35 + Math.sin(time * 0.012) * 0.06;
   camera.lookAt(0, 1.1, 0);
-
-  // Bloom intensity based on expression energy
-  bloom.strength = 0.12 + eI * 0.08;
-
+  
   composer.render();
 }
 
@@ -659,9 +686,7 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-/* ════════════════════════════════════════
-   UI Integration
-   ════════════════════════════════════════ */
+/* ── UI Integration ── */
 
 const chatBox = document.getElementById('chat-box');
 const inp = document.getElementById('inp');
@@ -746,7 +771,6 @@ async function sendMessage(text) {
 sendBtn.addEventListener('click', () => sendMessage(inp.value));
 inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(inp.value); });
 
-// Input focus → expression change
 inp.addEventListener('focus', () => setExpression('listening'));
 inp.addEventListener('blur', () => { if (curExpr === 'listening') setExpression('idle'); });
 
@@ -808,22 +832,17 @@ checkHealth();
 setInterval(checkHealth, 15000);
 connectDaemonWS();
 
-// Mouse tracking — eyes + slight head turn
 document.addEventListener('mousemove', (e) => {
-  const x = (e.clientX / window.innerWidth - 0.5) * 0.035;
-  const y = (e.clientY / window.innerHeight - 0.5) * 0.015;
-  [lEye, rEye].forEach((eye) => {
-    eye.children[1].position.x = 0.04 + x;
-    eye.children[1].position.y = y;
-    eye.children[2].position.x = 0.06 + x * 1.3;
-    eye.children[2].position.y = y * 1.3;
-    eye.children[4].position.x = -0.025 + x * 0.5;
-    eye.children[4].position.y = 0.025 + y * 0.5;
-  });
-  // Subtle head follow
+  const x = (e.clientX / window.innerWidth - 0.5) * 0.03;
+  const y = (e.clientY / window.innerHeight - 0.5) * 0.012;
+  rEye.group.position.x = 0.14 + x * 0.6;
+  rEye.group.position.y = 1.14 + y * 0.3;
+  lEye.group.position.x = -0.14 + x * 0.6;
+  lEye.group.position.y = 1.14 + y * 0.3;
+  
   if (curExpr === 'idle' || curExpr === 'listening') {
-    head.rotation.y = x * 0.15;
-    head.rotation.x = -y * 0.1;
+    head.rotation.y = x * 0.12;
+    head.rotation.x = -y * 0.08;
   }
 });
 
