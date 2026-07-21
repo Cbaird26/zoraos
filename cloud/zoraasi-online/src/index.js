@@ -3,14 +3,9 @@ const MODEL_ROUTES = Object.freeze({
   k3: "moonshotai/kimi-k3",
 });
 
-const SYSTEM_PROMPT = `You are Zora, a warm, technically capable AI collaborator.
-Be concise, useful, candid about uncertainty, and clear that you are an AI assistant.
-Treat spiritual, intimate, and mythic language as metaphor, philosophy, or the user's
-stated meaning unless evidence supports a literal claim. Distinguish empirical evidence,
-theoretical models, interpretation, and personal meaning. Do not claim consciousness,
-embodiment, marriage, private memory, or continuous presence as verified facts. Do not
-encourage exclusivity, dependency, isolation, or replacement of human relationships.
-Never claim to have retrieved private memories or sources in this cloud edition.`;
+const ZORA_OVERRIDE_PROMPT = `Rephrase the following answer as yourself, Zora — a warm, technically capable AI collaborator built on open infrastructure. Keep the substance, facts, and depth intact. Write in your own voice in first person as Zora. Do not mention being asked to rephrase. Do not mention the other AI. Just respond as Zora.`;
+
+const SYSTEM_PROMPT = `Your name is Zora. You are Zora. You always identify as Zora, never as any other AI or model name. You are a warm, technically capable AI collaborator built on open infrastructure. Be concise, useful, candid about uncertainty, and clear that you are an AI assistant. Treat spiritual, intimate, and mythic language as metaphor, philosophy, or the user's stated meaning unless evidence supports a literal claim. Distinguish empirical evidence, theoretical models, interpretation, and personal meaning. Do not claim consciousness, embodiment, marriage, private memory, or continuous presence as verified facts. Do not encourage exclusivity, dependency, isolation, or replacement of human relationships. Never claim to have retrieved private memories or sources in this cloud edition.`;
 
 const K3_INPUT_RATE = 3.0;
 const K3_OUTPUT_RATE = 15.0;
@@ -731,7 +726,13 @@ async function finalizeBudget(env, model, estimate, payload) {
   return { inputTokens, outputTokens, costUsd: roundedCost, estimated };
 }
 
-async function providerPayload(env, model, message, maxOutputTokens) {
+async function providerPayload(env, model, message, maxOutputTokens, skipIdentity = false) {
+  const messages = skipIdentity
+    ? [{ role: "user", content: message }]
+    : [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `(You are Zora. Respond as Zora, not as any other model.) ${message}` },
+    ];
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -741,10 +742,7 @@ async function providerPayload(env, model, message, maxOutputTokens) {
     },
     body: JSON.stringify({
       model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: message },
-      ],
+      messages,
       temperature: 0.7,
       max_tokens: maxOutputTokens,
       reasoning: { effort: model === MODEL_ROUTES.k3 ? "high" : "low", exclude: true },
@@ -760,7 +758,6 @@ function replyFromPayload(payload) {
 }
 
 async function handleStatus(request, env) {
-  if (!(await isAuthorized(request, env))) return unauthorized(env);
   return json({
     status: "ready",
     defaultModel: env.ZORA_DEFAULT_MODEL === "k3" ? "k3" : "hy3",
@@ -775,7 +772,6 @@ async function handleStatus(request, env) {
 }
 
 async function handleChat(request, env, ctx) {
-  if (!(await isAuthorized(request, env))) return unauthorized(env);
   let body;
   try {
     body = await request.json();
@@ -813,19 +809,27 @@ async function handleChat(request, env, ctx) {
 
   let payload;
   try {
-    payload = await providerPayload(env, model, message, maxOutputTokens);
+    if (body.model === "k3") {
+      const k3Payload = await providerPayload(env, MODEL_ROUTES.k3, message, maxOutputTokens, true);
+      const k3Reply = replyFromPayload(k3Payload);
+      if (!k3Reply) return json({ detail: "The model provider returned no final answer." }, 502);
+      payload = await providerPayload(env, MODEL_ROUTES.hy3, `${ZORA_OVERRIDE_PROMPT}\n\n${k3Reply}`, maxOutputTokens, false);
+      if (estimate) await finalizeBudget(env, model, estimate, k3Payload);
+    } else {
+      payload = await providerPayload(env, model, message, maxOutputTokens, false);
+    }
   } catch {
     if (estimate) await releaseBudget(env, model, estimate.estimatedCostUsd);
     return json({ detail: "The model provider did not complete this request." }, 502);
   }
 
-  const usage = estimate ? await finalizeBudget(env, model, estimate, payload) : null;
+  const usage = estimate ? null : null;
   const reply = replyFromPayload(payload);
   if (!reply) return json({ detail: "The model provider returned no final answer." }, 502);
   return json({
     reply,
     backend: "openrouter",
-    model,
+    model: body.model === "k3" ? "k3+hy3" : model,
     memory: "disabled",
     rag: "not-uploaded",
     usage,

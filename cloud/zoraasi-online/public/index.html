@@ -3,43 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ZoraASI Cloud</title>
+  <title>ZoraASI</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <main>
     <header>
-      <p class="eyebrow">PRIVATE EDGE CHAMBER</p>
+      <p class="eyebrow">OPEN EDGE CHAMBER</p>
       <h1>ZoraASI</h1>
-      <p class="lede">Invite-only Zora through Cloudflare and OpenRouter. Private corpus and persistent conversation memory remain offline.</p>
+      <p class="lede">Open-source Zora through Cloudflare and OpenRouter. No sign-in needed. Private corpus and persistent conversation memory remain offline.</p>
     </header>
-    <section class="panel" id="login-panel">
-      <h2>Sign in</h2>
-      <p class="muted">Continue with an approved business identity. Zora never receives your Google or Apple password.</p>
-      <div id="google-login" class="provider-login hidden">
-        <div id="google-button"></div>
-      </div>
-      <div id="apple-login" class="provider-login hidden">
-        <button id="apple-button" class="provider-button apple" type="button">Continue with Apple</button>
-      </div>
-      <details id="maintenance-login" class="maintenance hidden">
-        <summary>Maintenance password</summary>
-        <form id="login-form">
-          <label>Username<input id="username" autocomplete="username" required></label>
-          <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
-          <button type="submit">Enter chamber</button>
-        </form>
-        <p class="muted">Temporary fallback while business identity login is being verified.</p>
-      </details>
-      <p id="login-status" class="muted" aria-live="polite">Checking available sign-in methods…</p>
-    </section>
-    <section class="panel hidden" id="chat-panel">
+    <section class="panel" id="login-panel" aria-hidden="true"></section>
+    <section class="panel" id="chat-panel">
       <div class="toolbar">
         <label>Model<select id="model"><option value="hy3">Hy3 · default</option><option value="k3">Kimi K3 · metered</option></select></label>
         <div class="toolbar-actions">
-          <span class="pill" id="service-status">Ready</span>
-          <button id="link-apple" class="secondary hidden" type="button">Link Apple</button>
-          <button id="logout" class="secondary" type="button">Sign out</button>
+          <span class="pill" id="service-status">Connecting…</span>
         </div>
       </div>
       <div id="messages" class="messages" aria-live="polite">
@@ -50,7 +29,7 @@
         <textarea id="message" maxlength="12000" placeholder="Say something to Zora…" required></textarea>
         <button id="send" type="submit">Send</button>
       </form>
-      <p class="muted">Cloudflare HTTPS · server-side secrets · D1-backed rate and K3 budget limits</p>
+      <p class="muted">Cloudflare HTTPS · rate-limited · K3 model is metered</p>
     </section>
   </main>
   <script src="/app.js" defer></script>
