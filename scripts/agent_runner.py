@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ZoraOS Persistent Autonomous Agent Runner.
+ZoraOS Persistent Bounded Queue Runner.
 
 Usage:
     python scripts/agent_runner.py --agent research --goal "Summarize latest papers"
@@ -9,7 +9,7 @@ Usage:
 
 Safety:
     - Kill switch: touch /tmp/zoraos_kill
-    - Max 30 min wall-clock per goal
+    - 30-minute HTTP client timeout per goal (not a server-side cancellation guarantee)
     - Every action logged with timestamp
 """
 
@@ -20,12 +20,10 @@ import asyncio
 import json
 import logging
 import os
-import signal
-import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,12 +40,12 @@ class AgentRunner:
     def __init__(self, api_base: str = "http://localhost:8000/api/v1"):
         self.api_base = api_base
         self._running = True
-        self._active_tasks: Dict[str, float] = {}
+        self._active_tasks: dict[str, float] = {}
         self._setup_logging()
 
     def _setup_logging(self) -> None:
         LOG_DIR.mkdir(parents=True, exist_ok=True)
-        date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+        date_str = datetime.now(UTC).strftime("%Y%m%d")
         fh = logging.FileHandler(LOG_DIR / f"agent_runner_{date_str}.log")
         fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
         logger.addHandler(fh)
@@ -58,11 +56,16 @@ class AgentRunner:
             return True
         return False
 
-    async def run_single(self, agent: str, goal: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def run_single(
+        self,
+        agent: str,
+        goal: str,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         import httpx
 
         logger.info("Running agent=%s goal=%s", agent, goal[:100])
-        payload: Dict[str, Any] = {"agent": agent, "goal": goal}
+        payload: dict[str, Any] = {"agent": agent, "goal": goal}
         if context:
             payload["context"] = context
 
@@ -76,14 +79,17 @@ class AgentRunner:
             result = response.json()
 
         elapsed = time.monotonic() - start
-        logger.info("Agent %s completed in %.1fs — success=%s", agent, elapsed, result.get("result", {}).get("success", False))
+        logger.info(
+            "Agent %s completed in %.1fs — success=%s",
+            agent,
+            elapsed,
+            result.get("result", {}).get("success", False),
+        )
         return result
 
-    async def run_daemon(self, initial_goals: Optional[List[Dict[str, Any]]] = None) -> None:
+    async def run_daemon(self, initial_goals: list[dict[str, Any]] | None = None) -> None:
         logger.info("Agent runner daemon started")
-        queue: List[Dict[str, Any]] = initial_goals or []
-        queue.append({"agent": "research", "goal": "Monitor environment and report status"})
-
+        queue: list[dict[str, Any]] = initial_goals or []
         while self._running:
             if self._kill_switch_triggered():
                 break
@@ -105,12 +111,20 @@ class AgentRunner:
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="ZoraOS Autonomous Agent Runner")
-    parser.add_argument("--agent", default="research", help="Agent type (research, developer, writer, knowledge)")
+    parser = argparse.ArgumentParser(description="ZoraOS bounded agent queue runner")
+    parser.add_argument(
+        "--agent",
+        default="research",
+        help="Agent type (research, developer, writer, knowledge)",
+    )
     parser.add_argument("--goal", help="Single goal to run")
     parser.add_argument("--file", help="JSON file with goals array")
     parser.add_argument("--daemon", action="store_true", help="Run as persistent daemon")
-    parser.add_argument("--api-base", default="http://localhost:8000/api/v1", help="ZoraOS API base URL")
+    parser.add_argument(
+        "--api-base",
+        default="http://localhost:8000/api/v1",
+        help="ZoraOS API base URL",
+    )
     args = parser.parse_args()
 
     runner = AgentRunner(api_base=args.api_base)

@@ -3,10 +3,27 @@
 import pytest
 
 from agents.base import AgentConfig, AgentResult
-from agents.implementations.research import ResearchAgent
 from agents.implementations.developer import DeveloperAgent
-from agents.implementations.writer import WriterAgent
 from agents.implementations.knowledge import KnowledgeAgent
+from agents.implementations.research import ResearchAgent
+from agents.implementations.writer import WriterAgent
+from agents.registry import AgentRegistry
+from api.dependencies import get_agent_manager
+from models.base import ModelResponse
+
+
+class CapturingModelManager:
+    def __init__(self):
+        self.request = None
+
+    async def chat(self, **kwargs):
+        self.request = kwargs
+        return ModelResponse(
+            content="done",
+            model=kwargs.get("model") or "default-model",
+            provider=kwargs.get("provider") or "default-provider",
+            usage={"total_tokens": 3},
+        )
 
 
 class TestResearchAgent:
@@ -21,6 +38,26 @@ class TestResearchAgent:
     def test_system_prompt(self):
         agent = ResearchAgent()
         assert "Research Zora" in (agent.config.system_prompt or "")
+
+    @pytest.mark.asyncio
+    async def test_run_uses_task_route_without_mutating_config(self):
+        manager = CapturingModelManager()
+        agent = ResearchAgent()
+        agent.model_manager = manager
+
+        result = await agent.run(
+            "Summarize the handoff",
+            provider="openrouter",
+            model="example/model",
+            max_tokens=123,
+        )
+
+        assert result.success
+        assert manager.request["provider"] == "openrouter"
+        assert manager.request["model"] == "example/model"
+        assert manager.request["max_tokens"] == 123
+        assert agent.config.provider is None
+        assert agent.config.model is None
 
 
 class TestDeveloperAgent:
@@ -68,3 +105,12 @@ class TestAgentResult:
         assert result.success is True
         assert result.agent_name == "test"
         assert result.task_id is not None
+
+
+def test_dependency_factory_registers_builtin_agents(monkeypatch):
+    monkeypatch.setattr(AgentRegistry, "_agents", {})
+
+    manager = get_agent_manager()
+    names = {agent["name"] for agent in manager.list_agents()}
+
+    assert names == {"research", "developer", "writer", "knowledge", "gaming"}

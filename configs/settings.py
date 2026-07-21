@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from typing import Dict, List, Optional
 
-from pydantic import Field, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ProviderConfig(BaseSettings):
-    api_key: Optional[str] = None
+    api_key: str | None = None
     model: str = "gpt-4o"
-    api_base: Optional[str] = None
+    api_base: str | None = None
     max_tokens: int = 4096
     temperature: float = 0.7
     timeout: int = 120
@@ -50,10 +48,13 @@ class ModelProviderSettings(BaseSettings):
 class MemorySettings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     top_k: int = 10
-    collections: str = "research,books,physics,ai,projects,software,therapy,gaming,journal,ideas,meetings,papers,videos"
+    collections: str = (
+        "research,books,physics,ai,projects,software,therapy,gaming,"
+        "journal,ideas,meetings,papers,videos"
+    )
 
     @property
-    def collection_list(self) -> List[str]:
+    def collection_list(self) -> list[str]:
         return [c.strip() for c in self.collections.split(",")]
 
 
@@ -63,7 +64,7 @@ class ClusterSettings(BaseSettings):
     node_capabilities: str = "orchestrator,models,tools"
 
     @property
-    def capabilities(self) -> List[str]:
+    def capabilities(self) -> list[str]:
         return [c.strip() for c in self.node_capabilities.split(",")]
 
 
@@ -88,7 +89,7 @@ class Settings(BaseSettings):
     vector_store_type: str = "chroma"
     chroma_persist_dir: str = "./data/chroma"
 
-    gateway_host: str = "0.0.0.0"
+    gateway_host: str = "127.0.0.1"
     gateway_port: int = 8000
     gateway_secret_key: str = "change-me-to-a-random-string"
 

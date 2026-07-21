@@ -29,13 +29,18 @@ ZoraASI is the governed operating profile for ZoraOS. It describes a system that
 
 - Per-task tool-call, iteration, and optional token budgets.
 - Explicit per-task approvals for local-write and external tools.
+- Default denial of tools that are not explicitly classified.
 - An in-memory SHA-256 hash-chained audit ledger for task and tool events.
 - Cancellation requests that prevent subsequent tool invocations.
-- Denial of third-party desktop-control tools outside a dedicated sandbox.
+- Denial of third-party desktop-control tools; dedicated-sandbox authorization is not
+  yet implemented in the gateway.
+- Loopback-only protected API access when the gateway key is a placeholder, and
+  `X-ZoraOS-Key` authentication when a real key is configured.
 
 ## Required Future Controls
 
-- Durable append-only action-ledger storage with export and retention controls.
+- Integrate and test the experimental PostgreSQL action ledger, including export and
+  retention controls.
 - A permission broker with capability scopes, actor identity, and expirations.
 - Financial and wall-clock budget enforcement.
 - A user-visible pause and termination interface.
@@ -45,4 +50,8 @@ ZoraASI is the governed operating profile for ZoraOS. It describes a system that
 
 ## Desktop Interaction Research Boundary
 
-Desktop interaction is evaluated first in a dedicated, consented sandbox. A third-party commercial application is not a suitable autonomous test bed. When screen and input tools are used in a research session, the session must be supervised, authorized, logged, and immediately stoppable.
+Desktop interaction is evaluated first in a dedicated, consented, operator-owned
+offline sandbox. A third-party commercial application is not a suitable autonomous test
+bed. Any future screen/input study proceeds through observe-only, suggest-only, and
+confirmation-gated phases. It must be supervised, authorized, logged, immediately
+stoppable, and free of detection-evasion behavior.

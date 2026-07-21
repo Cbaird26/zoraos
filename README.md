@@ -36,7 +36,7 @@ bash scripts/start.sh
 
 ## Core Components
 
-- **Gateway** — API entry point, authentication, routing
+- **Gateway** — API entry point, local/API-key access control, routing
 - **Planner** — Breaks goals into tasks, tracks completion
 - **Router** — Selects model/provider based on task type
 - **Agents** — Research, Developer, Writer, Knowledge
@@ -65,6 +65,17 @@ pytest
 ruff check .
 mypy .
 ```
+
+## Current Prototype Status
+
+ZoraOS is a governed automation prototype, not evidence of consciousness, AGI/ASI, or
+safe unattended autonomy. Unknown tools are denied by default, live third-party desktop
+control is disabled, and the API is local-only while the gateway key remains a
+placeholder. The background runner and scheduler are scaffolds; continuous research is
+not enabled by default.
+
+The reviewed transfer record from the 2026-07-20 OpenCode session is in
+[`docs/OPENCODE_HANDOFF_2026-07-20.md`](docs/OPENCODE_HANDOFF_2026-07-20.md).
 
 ## Philosophy
 

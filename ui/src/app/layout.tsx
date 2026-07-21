@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ZoraOS",
-  description: "Local-first AI operating system for research, coding, and knowledge management",
+  title: "ZoraOS Observatory",
+  description: "A bounded, evidence-aware research control room for ZoraOS",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-gray-950 text-gray-100 antialiased">{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

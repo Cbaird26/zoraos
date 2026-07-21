@@ -1,8 +1,13 @@
 # ZoraOS Workflows
 
+These are proposed workflow specifications. The current scheduler is a scaffold and
+does not execute cron expressions, fetch these sources, or run continuous research.
+Each workflow requires explicit source authorization, retention rules, budgets, and a
+reviewed output destination before activation.
+
 ## Morning Briefing
 
-Trigger: Daily at 7 AM
+Proposed trigger: Daily at 7 AM
 Agent: Research
 Tasks:
 1. Read AI news from web
@@ -14,7 +19,7 @@ Tasks:
 
 ## Evening Summary
 
-Trigger: Daily at 9 PM
+Proposed trigger: Daily at 9 PM
 Agent: Knowledge
 Tasks:
 1. Backup knowledge graph
@@ -25,7 +30,7 @@ Tasks:
 
 ## Paper Analysis
 
-Trigger: On-demand
+Proposed trigger: On-demand
 Agent: Research
 Tasks:
 1. Download paper from arXiv/Zenodo
@@ -38,7 +43,7 @@ Tasks:
 
 ## Code Review
 
-Trigger: On-demand
+Proposed trigger: On-demand
 Agent: Developer
 Tasks:
 1. Read repository
@@ -49,7 +54,7 @@ Tasks:
 
 ## Literature Review
 
-Trigger: On-demand
+Proposed trigger: On-demand
 Agent: Research + Writer
 Tasks:
 1. Search for papers on topic

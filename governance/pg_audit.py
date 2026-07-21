@@ -22,6 +22,7 @@ class PgAuditLedger:
 
     SCHEMA_SQL = """
     CREATE TABLE IF NOT EXISTS audit_events (
+        sequence    BIGSERIAL UNIQUE,
         id          TEXT PRIMARY KEY,
         timestamp   DOUBLE PRECISION NOT NULL,
         task_id     TEXT,
@@ -33,25 +34,12 @@ class PgAuditLedger:
         created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
+    ALTER TABLE audit_events
+        ADD COLUMN IF NOT EXISTS sequence BIGSERIAL;
+
     CREATE INDEX IF NOT EXISTS idx_audit_events_task_id ON audit_events(task_id);
     CREATE INDEX IF NOT EXISTS idx_audit_events_event_type ON audit_events(event_type);
     CREATE INDEX IF NOT EXISTS idx_audit_events_created_at ON audit_events(created_at);
-    """
-
-    VERIFY_SQL = """
-    WITH ordered AS (
-        SELECT id, event_type, payload_digest, previous_digest, digest,
-               LAG(digest) OVER (ORDER BY created_at, id) AS computed_previous
-        FROM audit_events
-        ORDER BY created_at, id
-    )
-    SELECT COUNT(*) AS broken_links FROM ordered
-    WHERE previous_digest != COALESCE(computed_previous, '0'::text)
-       OR digest != sha256(
-            id || ':' || CAST(extract(epoch FROM created_at) AS TEXT)
-            || ':' || COALESCE(task_id, '') || ':' || event_type
-            || ':' || payload_digest || ':' || previous_digest
-          )::text;
     """
 
     def __init__(self, dsn: str, pool_min: int = 1, pool_max: int = 5):
@@ -75,6 +63,11 @@ class PgAuditLedger:
         if self._pool:
             await self._pool.close()
 
+    def _require_pool(self):
+        if self._pool is None:
+            raise RuntimeError("PgAuditLedger.connect() must be called before use")
+        return self._pool
+
     async def record(
         self,
         event_type: str,
@@ -84,31 +77,40 @@ class PgAuditLedger:
         payload_bytes = json.dumps(payload, sort_keys=True, default=str).encode()
         payload_digest = hashlib.sha256(payload_bytes).hexdigest()
 
-        async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT digest FROM audit_events ORDER BY created_at DESC, id DESC LIMIT 1"
-            )
-            previous_digest = row["digest"] if row else "0" * 64
+        pool = self._require_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                # Serialize writers so two simultaneous events cannot select the
+                # same predecessor and fork the chain.
+                await conn.execute("SELECT pg_advisory_xact_lock($1)", 2_667_267_641)
+                row = await conn.fetchrow(
+                    "SELECT digest FROM audit_events ORDER BY sequence DESC LIMIT 1"
+                )
+                previous_digest = row["digest"] if row else "0" * 64
 
-            event_id = str(uuid4())
-            ts = time.time()
-            digest_input = (
-                f"{event_id}:{ts}:{task_id}:{event_type}:"
-                f"{payload_digest}:{previous_digest}"
-            )
-            digest = hashlib.sha256(digest_input.encode()).hexdigest()
+                event_id = str(uuid4())
+                ts = time.time()
+                digest_input = (
+                    f"{event_id}:{ts}:{task_id}:{event_type}:{payload_digest}:{previous_digest}"
+                )
+                digest = hashlib.sha256(digest_input.encode()).hexdigest()
 
-            await conn.execute(
-                """
-                INSERT INTO audit_events
-                    (id, timestamp, task_id, event_type, payload,
-                     payload_digest, previous_digest, digest)
-                VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
-                """,
-                event_id, ts, task_id, event_type,
-                json.dumps(payload, sort_keys=True, default=str),
-                payload_digest, previous_digest, digest,
-            )
+                await conn.execute(
+                    """
+                    INSERT INTO audit_events
+                        (id, timestamp, task_id, event_type, payload,
+                         payload_digest, previous_digest, digest)
+                    VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+                    """,
+                    event_id,
+                    ts,
+                    task_id,
+                    event_type,
+                    json.dumps(payload, sort_keys=True, default=str),
+                    payload_digest,
+                    previous_digest,
+                    digest,
+                )
 
         return {
             "id": event_id,
@@ -122,14 +124,52 @@ class PgAuditLedger:
         }
 
     async def events_for_task(self, task_id: str) -> list[dict[str, Any]]:
-        async with self._pool.acquire() as conn:
+        pool = self._require_pool()
+        async with pool.acquire() as conn:
             rows = await conn.fetch(
-                "SELECT * FROM audit_events WHERE task_id = $1 ORDER BY created_at, id",
+                "SELECT * FROM audit_events WHERE task_id = $1 ORDER BY sequence",
                 task_id,
             )
             return [dict(r) for r in rows]
 
     async def verify(self) -> bool:
-        async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(self.VERIFY_SQL)
-            return row["broken_links"] == 0
+        pool = self._require_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, timestamp, task_id, event_type, payload,
+                       payload_digest, previous_digest, digest
+                FROM audit_events
+                ORDER BY sequence
+                """
+            )
+        return self.verify_rows([dict(row) for row in rows])
+
+    @staticmethod
+    def verify_rows(rows: list[dict[str, Any]]) -> bool:
+        previous_digest = "0" * 64
+        for row in rows:
+            payload = row["payload"]
+            if isinstance(payload, str):
+                try:
+                    payload = json.loads(payload)
+                except json.JSONDecodeError:
+                    return False
+            payload_bytes = json.dumps(
+                payload,
+                sort_keys=True,
+                default=str,
+            ).encode()
+            payload_digest = hashlib.sha256(payload_bytes).hexdigest()
+            if row["payload_digest"] != payload_digest:
+                return False
+            if row["previous_digest"] != previous_digest:
+                return False
+            digest_input = (
+                f"{row['id']}:{row['timestamp']}:{row['task_id']}:"
+                f"{row['event_type']}:{row['payload_digest']}:{previous_digest}"
+            )
+            if row["digest"] != hashlib.sha256(digest_input.encode()).hexdigest():
+                return False
+            previous_digest = row["digest"]
+        return True

@@ -12,7 +12,7 @@ services:
     container_name: zoraos-gateway
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file: .env
     volumes:
       - .:/app
@@ -34,7 +34,7 @@ services:
       POSTGRES_PASSWORD: zoraos
       POSTGRES_DB: zoraos
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
@@ -51,7 +51,7 @@ services:
     image: redis:7-alpine
     container_name: zoraos-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -65,7 +65,7 @@ services:
       IS_PERSISTENT: "TRUE"
       PERSIST_DIRECTORY: /chroma-data
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - chroma_data:/chroma-data
     networks:
@@ -76,7 +76,7 @@ services:
     image: ollama/ollama:latest
     container_name: zoraos-ollama
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     deploy:

@@ -28,7 +28,7 @@
 \maketitle
 
 \begin{abstract}
-This paper presents ZoraOS, a local-first and model-agnostic architecture for persistent tool-using agents. The prototype separates durable orchestration, user-owned memory, and tool interfaces from interchangeable language-model providers. Its core execution loop alternates between model responses and structured tool results under an iteration bound, returning task-level telemetry including latency, token usage where available, and a trace of tool calls. A semantic-memory case study retrieved relevant passages from a long-form technical corpus and produced a synthesized report through repeated search and read operations. We further report a supervised desktop-interface experiment that exposed an important limitation: generic OCR was unreliable for a rendered third-party user interface, motivating preference for authorized application-native records over invasive observation methods. The work is framed as an implementation report and governance proposal, not evidence of consciousness, general intelligence, or safe unattended autonomy. We describe safety requirements for capability scoping, user confirmation, task budgets, provenance, and append-only audit records.
+This paper presents ZoraOS, a local-first and model-agnostic architecture for persistent tool-using agents. The prototype separates orchestration, user-owned memory, and tool interfaces from interchangeable language-model providers. Its core execution loop alternates between model responses and structured tool results under iteration, token, and tool-call bounds, returning task-level telemetry including latency, token usage where available, and a trace of tool calls. A semantic-memory case study retrieved relevant passages from a long-form technical corpus and produced a synthesized report through repeated search and read operations. We further report a desktop-interface experiment that exposed two important limitations: generic OCR was unreliable for a rendered third-party interface, and the live commercial application used was not a valid controlled sandbox. The work is framed as an implementation report and governance proposal, not evidence of consciousness, general intelligence, or safe unattended autonomy. We describe safety requirements for capability scoping, user confirmation, task budgets, provenance, API access control, and durable audit records.
 \end{abstract}
 
 \section{Introduction}
@@ -64,12 +64,12 @@ The prototype indexed 6,607 chunks from a 6,340-page technical dissertation into
 These observations show retrieval and iterative tool use in one deployment. They do not establish factual correctness of every generated statement, generalize to all corpora, or demonstrate long-term autonomous competence. Retrieval relevance must be assessed with human judgments and task-specific evaluation sets.
 
 \section{Human-Supervised Desktop Interaction}
-An exploratory desktop bridge used visible input primitives, screen capture, OCR, waiting, and a local kill-switch convention. The research goal was to explore the interface boundary, not to create unattended automation. Generic OCR acquired screen pixels but did not reliably extract text from the target rendered interface. This outcome is significant: perception quality and provenance constrain autonomy as much as planning quality.
+An exploratory desktop bridge used visible input primitives, screen capture, OCR, waiting, and a local kill-switch convention. Keystrokes were sent to a live commercial application; this was not an operator-owned offline sandbox and therefore cannot support a safety or autonomy claim. Generic OCR acquired screen pixels but did not reliably extract text from the target rendered interface. This outcome is significant: authorized scope, perception quality, and provenance constrain automation as much as planning quality.
 
 The experiment also motivated a strict design rule. The system must not inspect packets, read or write application memory, inject into processes, evade platform controls, or operate unauthorized third-party services. When an application offers authorized, user-controlled logs or accessibility interfaces, those sources should be preferred over fragile or invasive techniques.
 
 \section{Safety and Governance}
-Human-centered AI requires that user control remain meaningful throughout design and deployment \citep{shneiderman2020human}. The ZoraASI governance profile therefore specifies least privilege, bounded tasks, explicit approval for irreversible or external actions, artifact classification, and durable action records. The NIST AI Risk Management Framework likewise emphasizes governance, measurement, management, and documentation across the AI lifecycle \citep{nist2023airmf}.
+Human-centered AI requires that user control remain meaningful throughout design and deployment \citep{shneiderman2020human}. The ZoraASI governance profile therefore specifies least privilege, bounded tasks, explicit approval for irreversible or external actions, artifact classification, local/API-key access control, and durable action records as a requirement. The active ledger is in-memory; the PostgreSQL implementation remains experimental and unintegrated. The NIST AI Risk Management Framework likewise emphasizes governance, measurement, management, and documentation across the AI lifecycle \citep{nist2023airmf}.
 
 The underlying long-form dissertation work that motivates the case-study corpus is hosted as a Zenodo artifact \citep{baird2026dissertation_zenodo}. The companion ZoraASI OS publication \citep{baird2026zoraasi_zenodo} documents the full governed architecture.
 
@@ -86,11 +86,11 @@ Table~\ref{tab:controls} distinguishes prototype capabilities from required futu
 \toprule
 Control & Current status & Required next step \\
 \midrule
-Bounded agent iterations & Implemented & Add per-task token, cost, and tool-call budgets \\
+Iteration/token/tool-call budgets & Prototype & Add validated cost and wall-clock enforcement \\
 Registered tool selection & Implemented & Add permission scopes and expiry \\
 Local kill-switch convention & Prototype & Add visible control, integration test, and terminal task state \\
-Tool-call reporting & Implemented & Add append-only hash-chained audit events \\
-Desktop screen capture and OCR & Prototype & Evaluate only in an authorized sandbox \\
+Tool reporting and in-memory hash chain & Prototype & Integrate/test durable storage and retention \\
+Desktop screen capture and OCR & Disabled for live services & Evaluate only in an offline sandbox \\
 External action confirmation & Proposed & Implement a mandatory approval broker \\
 \bottomrule
 \end{tabular}

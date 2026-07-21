@@ -3,7 +3,9 @@
 ## Layers
 
 ### Layer 1 — Hardware
-MacBooks (M5, M4, M2, M1) running Docker, Python, PostgreSQL, Ollama.
+Proposed MacBook topology (M5, M4, M2, M1) running Docker, Python,
+PostgreSQL, and Ollama. The current handoff verifies local services on one host, not a
+live four-node cluster.
 
 ### Layer 2 — Models
 Interchangeable providers. Configure via environment variables.
@@ -30,7 +32,7 @@ Decomposes goals, delegates, tracks completion.
 3. Planner decomposes goal into steps
 4. Router selects optimal model/provider
 5. Agent executes with tool access
-6. Results stored in memory
+6. Results returned with telemetry; explicit workflows may store approved derivatives in memory
 7. Response returned to user
 
 ## Design Principles

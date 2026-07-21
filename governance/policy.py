@@ -31,7 +31,9 @@ class GovernancePolicy:
     }
 
     def classify(self, tool_name: str) -> CapabilityClass:
-        return self._classes.get(tool_name, CapabilityClass.READ_ONLY)
+        # Unknown capabilities are denied. Treating an unregistered tool as
+        # read-only would let a newly added side-effecting tool bypass policy.
+        return self._classes.get(tool_name, CapabilityClass.PROHIBITED)
 
     def authorize(
         self,
@@ -40,6 +42,8 @@ class GovernancePolicy:
     ) -> tuple[bool, str | None]:
         capability = self.classify(tool_name)
         if capability is CapabilityClass.PROHIBITED:
+            if tool_name not in self._classes:
+                return False, f"Tool '{tool_name}' is not registered in governance policy"
             return False, f"Tool '{tool_name}' is prohibited by governance policy"
         if context is None:
             if capability is CapabilityClass.READ_ONLY:

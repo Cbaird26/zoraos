@@ -4,7 +4,7 @@ import pytest
 
 from governance.audit import AuditLedger
 from governance.context import ExecutionBudget, ExecutionContext
-from governance.policy import GovernancePolicy
+from governance.policy import CapabilityClass, GovernancePolicy
 from tools.base import Tool, ToolResult
 from tools.manager import ToolManager
 from tools.registry import ToolRegistry
@@ -91,3 +91,17 @@ async def test_tool_call_budget_is_enforced(
     assert not second.success
     assert "budget exceeded" in (second.error or "")
     assert ledger.verify()
+
+
+def test_unknown_tool_is_default_denied() -> None:
+    policy = GovernancePolicy()
+    context = ExecutionContext(
+        task_id="task-unknown",
+        approved_tools=frozenset({"new_side_effecting_tool"}),
+    )
+
+    assert policy.classify("new_side_effecting_tool") is CapabilityClass.PROHIBITED
+    allowed, reason = policy.authorize("new_side_effecting_tool", context)
+
+    assert not allowed
+    assert "not registered" in (reason or "")

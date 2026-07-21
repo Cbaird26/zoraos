@@ -1,5 +1,9 @@
 # ZoraOS Multi-Machine Cluster
 
+Status: **proposed topology, not verified as a live distributed deployment**. The setup
+script records node configuration; dynamic capability advertisement, authenticated
+node transport, dispatch, failure recovery, and integration tests remain future work.
+
 ## Architecture
 
 ```
@@ -62,7 +66,7 @@ bash scripts/cluster_setup.sh m2-automation worker
 bash scripts/cluster_setup.sh m1-memory worker
 ```
 
-## Dynamic Scheduling
+## Proposed Dynamic Scheduling
 
 Nodes advertise capabilities:
 - "I can run local models"

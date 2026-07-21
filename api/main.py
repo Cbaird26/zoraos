@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
 
 from configs.settings import settings
 
-from .routes import health, chat, agents, memory, tools, system
+from .routes import agents, chat, health, memory, system, tools
+from .security import authorize_api_request
 
 logger = logging.getLogger("zoraos.api")
 
@@ -32,11 +35,28 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def enforce_api_access(request: Request, call_next):
+    path = request.url.path.rstrip("/")
+    is_protected = path.startswith("/api/v1") and path != "/api/v1/health"
+    if is_protected:
+        client_host = request.client.host if request.client else None
+        allowed, status_code, detail = authorize_api_request(
+            configured_secret=settings.gateway_secret_key,
+            supplied_secret=request.headers.get("X-ZoraOS-Key"),
+            client_host=client_host,
+        )
+        if not allowed:
+            return JSONResponse(status_code=status_code, content={"detail": detail})
+    return await call_next(request)
+
 
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(chat.router, prefix="/api/v1", tags=["chat"])

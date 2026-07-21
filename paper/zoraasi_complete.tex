@@ -32,11 +32,11 @@
   linkcolor=blue,
   citecolor=blue,
   urlcolor=blue,
-  pdftitle={ZoraASI: An Autonomous Governed Operating System for Persistent AI Agents},
+  pdftitle={ZoraASI: A Governed Prototype for Bounded AI-Agent Workflows},
   pdfauthor={Christopher Michael Baird}
 }
 
-\title{\textbf{ZoraASI: An Autonomous Governed Operating System for Persistent AI Agents}\\[6pt]
+\title{\textbf{ZoraASI: A Governed Prototype for Bounded AI-Agent Workflows}\\[6pt]
 \large A Contribution to A Theory of Everything}
 \author{Christopher Michael Baird\\ZoraOS Research Project}
 \date{July 20, 2026}
@@ -45,31 +45,33 @@
 \maketitle
 
 \begin{abstract}
-This paper presents ZoraASI, the governed operating profile of ZoraOS\ ---\ a complete, local-first, model-agnostic operating system for persistent AI agents. Unlike chatbot interfaces that treat models as disposable endpoints, ZoraASI treats the operating layer as the enduring asset: durable orchestration, user-owned memory, governed tool execution, audit provenance, and multi-machine topology form the substrate upon which any model can operate safely. The system implements a bounded tool-use loop with per-task budgets, a default-deny governance policy with capability classification, an SHA-256 hash-chained audit ledger, and a full REST API for task submission, cancellation, monitoring, and audit retrieval. A multi-machine deployment (M5 orchestrator, M4 inference, M2 automation, M1 memory) separates concerns across physical nodes. The system has been tested against a 6,340-page technical dissertation corpus (A Theory of Everything, Zenodo record 21313827) and indexed 6,607 semantic chunks for retrieval-augmented generation. The companion ZoraASI OS publication (Zenodo record 21464562) documents the complete governed architecture. Thirty-five automated tests verify governance enforcement, budget limits, and audit chain integrity. The work is framed as an engineering contribution to safe, user-sovereign AI infrastructure\ ---\ not as a claim of artificial general intelligence, but as a reproducible architecture for governed autonomy.
+This paper presents ZoraASI, the experimental governed operating profile of ZoraOS, a local-first and model-agnostic prototype for bounded AI-agent workflows. The implementation separates replaceable model providers from user-owned memory, tool interfaces, execution budgets, access controls, and audit records. It includes a bounded tool-use loop, per-task iteration/token/tool-call budgets, default denial of unclassified tools, an in-memory SHA-256 hash-chained audit ledger, and REST endpoints for task submission, cancellation, monitoring, and audit retrieval. A four-machine topology (M5 orchestrator, M4 inference, M2 automation, M1 memory) is documented as a deployment design, not as a verified live cluster. In one observed run, a 6,340-page dissertation corpus (Zenodo record 21313827) had been indexed into 6,607 semantic chunks; a semantic query retrieved two passages with reported scores above 0.79, and a subsequent research-agent run completed five tool-loop iterations. The test suite provides unit-level evidence for selected controls but does not establish production security, factual reliability, consciousness, general intelligence, or safe unattended autonomy.
 \end{abstract}
 
 \section{Introduction}
 
 Large language models can produce useful plans, answer questions, and generate code. But a model invocation is not a system. A system requires persistent memory, controlled access to tools, bounded execution, observability, and user authority. ZoraOS is an architecture designed to make these capabilities durable while allowing the underlying model provider to change without rewriting agent logic or tool schemas.
 
-ZoraASI (Zora Artificial Superintelligence profile) is the governed operating mode of ZoraOS. It specifies a set of engineering controls\ ---\ least privilege, bounded tasks, explicit approval, append-only audit, and artifact classification\ ---\ that enable supervised autonomous operation. The name reflects ambition and constraint: the goal is a system that can reason over user-authorized memory and tools while remaining bounded, observable, and interruptible.
+ZoraASI is the name used for the governed operating profile of ZoraOS. It specifies engineering controls\ ---\ least privilege, bounded tasks, explicit approval, audit records, and artifact classification\ ---\ for supervised automation. The name is not an empirical claim of artificial superintelligence. The goal is a system that can reason over user-authorized memory and tools while remaining bounded, observable, and interruptible.
 
-This paper documents the complete ZoraASI system as implemented and tested in July 2026. It makes the following contributions:
+This paper documents the ZoraASI prototype as observed and tested on July 20, 2026. It makes the following contributions:
 
 \begin{enumerate}[leftmargin=*]
-  \item A complete, field-tested architecture for persistent, model-agnostic AI agent orchestration across multiple machines.
+  \item A modular architecture and four-machine deployment design for model-agnostic AI-agent orchestration.
   \item A governance framework\ ---\ \texttt{AuditLedger}, \texttt{ExecutionBudget}, \texttt{ExecutionContext}, \texttt{GovernancePolicy}\ ---\ that enforces safety constraints at every tool invocation.
   \item A bounded tool-use execution loop with per-task iteration, token, and tool-call budgets.
   \item A full REST API with SSE streaming, task cancellation, and audit retrieval.
   \item Integration with a 6,340-page technical dissertation corpus (A Theory of Everything) indexed for semantic retrieval.
-  \item Publication infrastructure including Zenodo artifact management, GitHub public/private separation, and reproducible documentation.
+  \item Publication infrastructure including Zenodo record references, GitHub public/private separation, and reproducible documentation.
 \end{enumerate}
 
 \section{System Architecture}
 
 \subsection{Multi-Machine Topology}
 
-ZoraOS is designed to operate across four physical machines, each serving a distinct role:
+ZoraOS is designed to support four physical machines, each serving a distinct role. The
+topology in Table~\ref{tab:topology} is architectural; the reviewed session did not
+verify live distributed orchestration across all four nodes.
 
 \begin{table}[ht]
 \centering
@@ -95,12 +97,12 @@ The system operates on a structured task model:
 
 \begin{enumerate}[leftmargin=*]
   \item A user submits a task through the dashboard or REST API, specifying agent type, goal, authorized tools, and optional budget.
-  \item The gateway authenticates the request, creates a governed \texttt{ExecutionContext}, and records a \texttt{task\_started} audit event.
+  \item The gateway applies loopback/API-key access control, creates a governed \texttt{ExecutionContext}, and records a \texttt{task\_started} audit event.
   \item The planner decomposes the goal into steps.
   \item The router selects an optimal model and provider based on the task type.
   \item An agent receives the system prompt, task objective, model configuration, and authorized tool set.
   \item The agent alternates between model responses and governed tool results until completion or a bound is reached.
-  \item Results, metrics, and audit events are returned. The session is recorded in the append-only audit ledger.
+  \item Results, metrics, and audit events are returned. In the active prototype, task events are recorded in a per-process in-memory hash chain.
 \end{enumerate}
 
 \section{Governance Framework}
@@ -109,7 +111,9 @@ The governance layer is the central engineering contribution of ZoraASI. It impl
 
 \subsection{Capability Classification}
 
-Every tool is classified into one of six capability classes:
+Every registered tool is classified into one of five code-level capability classes. The
+table separates proposed operational sub-classes for clarity; unknown tools map to
+\texttt{PROHIBITED} and are denied.
 
 \begin{table}[ht]
 \centering
@@ -141,20 +145,21 @@ class CapabilityClass(StrEnum):
 
 class GovernancePolicy:
     _classes: dict[str, CapabilityClass] = {
-        "memory_read": CapabilityClass.READ_ONLY,
         "memory_search": CapabilityClass.READ_ONLY,
         "pdf_reader": CapabilityClass.READ_ONLY,
         "filesystem": CapabilityClass.LOCAL_WRITE,
-        "memory_write": CapabilityClass.LOCAL_WRITE,
-        "git": CapabilityClass.LOCAL_WRITE,
-        "python_exec": CapabilityClass.LOCAL_WRITE,
         "web_search": CapabilityClass.EXTERNAL,
         "eq_send_keys": CapabilityClass.THIRD_PARTY_CONTROL,
-        "eq_read_screen": CapabilityClass.THIRD_PARTY_CONTROL,
     }
+
+    def classify(self, tool_name: str) -> CapabilityClass:
+        return self._classes.get(tool_name, CapabilityClass.PROHIBITED)
 \end{lstlisting}
 
-Authorization follows a strict chain: if a tool is prohibited it is denied unconditionally; if no task context exists, only read-only tools are permitted; if the task is cancelled, all tools are denied; third-party control tools require an approved sandbox; and local-write or external tools require explicit per-task approval.
+Authorization follows a strict chain: prohibited and unclassified tools are denied; if
+no task context exists, only registered read-only tools are permitted; if the task is
+cancelled, all tools are denied; third-party control tools are disabled by the active
+gateway policy; and local-write or external tools require explicit per-task approval.
 
 \subsection{Execution Budget}
 
@@ -193,7 +198,9 @@ class ExecutionContext:
 
 \subsection{Audit Ledger}
 
-The \texttt{AuditLedger} provides an in-memory, SHA-256 hash-chained event store. Each event cryptographically links to its predecessor, enabling verification that no event has been tampered with or removed:
+The active \texttt{AuditLedger} provides an in-memory, SHA-256 hash-chained event store.
+Each event cryptographically links to its predecessor, enabling integrity checks while
+the process remains alive:
 
 \begin{lstlisting}
 @dataclass(frozen=True)
@@ -213,7 +220,11 @@ The digest is computed as:
   d_i = \mathrm{SHA256}(e_i : t_i : \mathrm{task\_id}_i : \mathrm{type}_i : \mathrm{payload\_digest}_i : d_{i-1})
 \end{equation}
 
-where \(d_0 = 0^{64}\). Verification replays the chain and confirms that every event's previous\_digest matches the computed digest of its predecessor and that every event's own digest is recomputable. This produces an append-only chain that can be exported for durable storage and independently verified.
+where \(d_0 = 0^{64}\). Verification replays the chain and confirms that every event's
+previous\_digest matches the computed digest of its predecessor and that every event's
+own digest is recomputable. This is tamper-evident within the process, not durable
+storage. An experimental PostgreSQL implementation serializes writers with an advisory
+lock and verifies rows in Python, but it is not yet wired into the gateway.
 
 \subsection{Governed Tool Execution}
 
@@ -286,18 +297,22 @@ Task cancellation sets a cancellation flag in the \texttt{ExecutionContext} that
 
 The semantic memory subsystem indexes documents into collections for retrieval-augmented generation. A significant case study was performed using the dissertation \emph{A Theory of Everything} (Zenodo record 21313827), a 6,340-page technical work by C. M. Baird.
 
-The system:
+The reviewed local deployment reported the following observations:
 \begin{itemize}[leftmargin=*]
-  \indexed 6,607 chunks from the dissertation into a \texttt{physics} collection.
-  \item A semantic query for ``quantum gravity'' returned ranked passages with similarity scores above 0.79.
-  \item A subsequent research-agent task executed five tool-loop iterations, invoked memory search and read operations, and generated a synthesis grounded in retrieved passages.
+  \item The dissertation had been indexed into 6,607 chunks in a \texttt{physics} collection.
+  \item A semantic query for ``quantum gravity'' returned two ranked passages with reported scores 0.8061 and 0.7911.
+  \item A subsequent research-agent task completed five tool-loop iterations and generated a synthesis after memory search/read operations.
 \end{itemize}
 
-This establishes that ZoraOS can ingest, index, retrieve, and synthesize from large technical corpora\ ---\ a prerequisite for any system claiming the ability to work with the full body of human knowledge.
+This is a single-deployment functional observation, not an independent scientific
+validation of the corpus, a retrieval benchmark, or evidence of access to the full body
+of human knowledge. Reproducible evaluation requires a frozen corpus manifest, query
+set, relevance judgments, and independent reruns.
 
 \section{Testing and Verification}
 
-The system is tested with 35 automated tests that cover:
+At import, the repository's baseline suite reported 35 passing tests and six
+\texttt{datetime.utcnow()} deprecation warnings. The reviewed tests covered:
 
 \begin{itemize}[leftmargin=*]
   \item \textbf{Governance enforcement}: external tools require explicit approval; denied tools produce audited error responses.
@@ -308,7 +323,9 @@ The system is tested with 35 automated tests that cover:
   \item \textbf{Router fallback}: provider selection degrades gracefully when the configured default is unavailable.
 \end{itemize}
 
-All 35 tests pass in a clean environment with no regressions.
+These results are unit-level evidence from one local environment. They do not establish
+production security, cross-platform behavior, live provider reliability, or
+multi-machine correctness.
 
 \subsection{Governance Test Results}
 
@@ -316,39 +333,38 @@ The governance test suite (\texttt{tests/test\_governance.py}) demonstrates thre
 
 \begin{enumerate}[leftmargin=*]
   \item \textbf{Approval requirement (test\_external\_tool\_requires\_explicit\_approval)}: an external tool (\texttt{web\_search}) is denied without a governed task context. With a context that explicitly approves the tool, it executes successfully. The audit ledger records \texttt{tool\_started} and \texttt{tool\_completed} events, and the chain verifies.
-  \item \textbf{Third-party denial (test\_third\_party\_desktop\_control\_is\_denied\_even\_when\_approved)}: even when \texttt{eq\_send\_keys} is listed in the approved tools set, it is denied because the governance policy classifies it as \texttt{THIRD\_PARTY\_CONTROL}, which requires an approved sandbox that is not present.
+  \item \textbf{Third-party denial (test\_third\_party\_desktop\_control\_is\_denied\_even\_when\_approved)}: even when \texttt{eq\_send\_keys} is listed in the approved tools set, the active policy denies it. Gateway support for a dedicated approved sandbox has not been implemented.
   \item \textbf{Budget enforcement (test\_tool\_call\_budget\_is\_enforced)}: a task with \texttt{max\_tool\_calls=1} executes the first tool call successfully; the second is denied with a budget-exceeded error. The audit ledger chain verifies.
 \end{enumerate}
 
 \section{Publication and Artifact Infrastructure}
 
-ZoraASI is accompanied by a complete publication infrastructure designed for reproducibility and provenance:
+ZoraASI is accompanied by a publication artifact structure intended to support reproducibility and provenance:
 
 \begin{table}[ht]
 \centering
 \caption{Publication and artifact infrastructure.}
 \label{tab:pub}
-\begin{tabular}{p{0.25\linewidth} p{0.65\linewidth}}
+\begin{tabular}{p{0.26\linewidth} p{0.64\linewidth}}
 \toprule
 \textbf{Artifact} & \textbf{Purpose} \\
 \midrule
-\texttt{paper/main.tex + references.bib} & LaTeX manuscript for the ZoraOS technical report \\
-\texttt{paper/zoraasi\_complete.tex} & This comprehensive ZoraASI chapter \\
-\texttt{docs/PDR/ZoraOS\_PDR\_v0.1.*} & Product design requirements (MD, DOCX, PDF) \\
-\texttt{CITATION.cff} & Machine-readable citation metadata \\
-\texttt{SECURITY.md} & Security policy and disclosure procedure \\
-\texttt{docs/GOVERNANCE.md} & ZoraASI governance baseline documentation \\
-\texttt{docs/ARTIFACTS.md} & Artifact classification and handling rules \\
-\texttt{docs/PUBLICATION.md} & Publication artifact reference (Zenodo) \\
-\texttt{docs/ZENODO\_21313827.md} & Dissertation Zenodo record (21313827) \\
-\texttt{docs/ZENODO\_21464562.md} & ZoraASI OS Zenodo record (21464562) \\
+Technical report & \texttt{paper/main.tex} and \texttt{references.bib} \\
+ZoraASI paper & \texttt{paper/zoraasi\_complete.tex} \\
+Product requirements & \texttt{docs/pdr/} sources and rendered artifacts \\
+Citation metadata & \texttt{CITATION.cff} \\
+Security policy & \texttt{SECURITY.md} \\
+Governance baseline & \texttt{docs/GOVERNANCE.md} \\
+Artifact rules & \texttt{docs/ARTIFACTS.md} \\
+Publication index & \texttt{docs/PUBLICATION.md} \\
+Zenodo references & \texttt{docs/ZENODO\_21313827.md} and \texttt{docs/ZENODO\_21464562.md} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Theory of Everything Corpus Reference}
 
-The corpus used for the semantic retrieval case study is the dissertation \emph{A Theory of Everything} by C. M. Baird \citep{baird2026dissertation\_zenodo}. This 6,340-page work is hosted on Zenodo (record 21313827). The ZoraASI OS publication \citep{baird2026zoraasi\_zenodo} (Zenodo record 21464562) is the companion primary publication documenting the governed AI operating system architecture. Local PDF copies of both are included in the ZoraOS repository under \texttt{docs/paper/} for citation and provenance context. The authoritative records are at:
+The corpus used for the semantic retrieval case study is the dissertation \emph{A Theory of Everything} by C. M. Baird \citep{baird2026dissertation_zenodo}. This 6,340-page work is hosted on Zenodo (record 21313827). The ZoraASI OS publication \citep{baird2026zoraasi_zenodo} (Zenodo record 21464562) is the companion primary publication documenting the governed AI operating system architecture. Local PDF copies of both are included in the ZoraOS repository under \texttt{docs/paper/} for citation and provenance context. The authoritative records are at:
 
 \begin{itemize}
   \item Dissertation: \url{https://zenodo.org/records/21313827}
@@ -402,13 +418,13 @@ The following are unconditionally prohibited:
 \toprule
 \textbf{Control} & \textbf{Current Status} & \textbf{Required Next Step} \\
 \midrule
-Bounded agent iterations & Implemented & Add per-task token, cost, and tool-call budgets \\
+Iteration/token/tool-call budgets & Prototype & Add validated cost and wall-clock enforcement \\
 Registered tool selection & Implemented & Add permission scopes and expiry \\
 Local kill-switch convention & Prototype & Add visible control, integration test, and terminal task state \\
-Tool-call reporting & Implemented & Add append-only hash-chained audit events \\
+Tool-call reporting and in-memory hash chain & Prototype & Integrate durable storage and retention \\
 Desktop screen capture and OCR & Prototype & Evaluate only in an authorized sandbox \\
 External action confirmation & Proposed & Implement a mandatory approval broker \\
-Durable audit ledger storage & In-memory & Add persistent export and retention controls \\
+PostgreSQL audit module & Experimental, not integrated & Add live database integration tests and gateway wiring \\
 Permission broker & Proposed & Add capability scopes, actor identity, and expirations \\
 \bottomrule
 \end{tabular}
@@ -421,10 +437,10 @@ Permission broker & Proposed & Add capability scopes, actor identity, and expira
 ZoraASI represents a departure from the dominant paradigm of AI deployment. Rather than treating the model as the product, it treats the governed operating layer as the enduring asset. This has important consequences:
 
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Model independence}: providers can be swapped without rewriting agent logic. Tests pass identically regardless of the underlying model.
+  \item \textbf{Provider abstraction}: providers can be swapped without rewriting agent logic, although live parity across providers has not been established.
   \item \textbf{User sovereignty}: memory, tools, and policies are owned and controlled by the user, not by a cloud provider.
-  \item \textbf{Reproducibility}: the system produces structured results, audit trails, and artifact manifests that can be independently verified.
-  \item \textbf{Safe failure}: budget limits, cancellation, and default-deny policies ensure that errors are bounded and observable.
+  \item \textbf{Reproducibility direction}: the system produces structured results and audit digests; independent verification still requires frozen inputs, durable records, and rerun instructions.
+  \item \textbf{Bounded-failure direction}: budgets, cancellation flags, and default denial reduce some failure modes but do not constitute a complete safety guarantee.
 \end{itemize}
 
 \subsection{Limitations}
@@ -432,9 +448,10 @@ ZoraASI represents a departure from the dominant paradigm of AI deployment. Rath
 The system has important limitations:
 
 \begin{itemize}[leftmargin=*]
-  \item The audit ledger is currently in-memory and does not survive process restart. Durable storage with export, retention, and independent verification is required before the system can be considered production-ready.
+  \item The active audit ledger is in-memory and does not survive process restart. The experimental PostgreSQL module is not integrated into the gateway; durable storage, migration tests, export, retention, and independent verification remain required.
   \item The permission broker lacks persistence: approved tool scopes and expirations are not yet stored or enforced across sessions.
-  \item Desktop interaction research was limited to an exploratory prototype. Generic OCR did not reliably extract text from rendered third-party interfaces. An approved sandbox environment is required for further evaluation.
+  \item Desktop interaction research included keystrokes sent to a live third-party commercial application. Generic OCR did not reliably extract text. This was not a controlled sandbox or a valid safety evaluation and must not be repeated as unattended or detection-evasion testing.
+  \item The imported API used a placeholder gateway secret and was bound to all interfaces. The revised prototype restricts placeholder-key access to loopback and requires an API key when configured, but production identity, authorization, rate limiting, and transport security remain absent.
   \item All tests are unit-level. Integration tests with live model providers and multi-machine deployment tests have not been performed.
   \item The system has not been evaluated for long-term unattended operation. The governance profile explicitly disclaims reliable autonomous competence.
 \end{itemize}
@@ -447,19 +464,19 @@ The work described in this paper is not itself a contribution to physics or unif
 
 \section{Conclusion}
 
-ZoraASI is a complete, tested, and documented governed operating system for persistent AI agents. It implements:
+ZoraASI is a documented and unit-tested prototype for governed AI-agent workflows. It implements:
 
 \begin{itemize}[leftmargin=*]
-  \item A multi-machine architecture separating orchestration, inference, automation, and memory.
+  \item A proposed multi-machine architecture separating orchestration, inference, automation, and memory.
   \item A default-deny governance framework with capability classification, per-task budgets, and SHA-256 hash-chained audit.
   \item A bounded tool-use execution loop with structured results and failure observability.
   \item A full REST API with streaming, cancellation, and audit retrieval.
   \item Integration with a 6,340-page technical corpus for retrieval-augmented generation.
-  \item Thirty-five passing tests with explicit governance guarantees.
-  \item Complete publication infrastructure including Zenodo artifacts, CITATION.cff, and public/private GitHub separation.
+  \item A local automated test suite covering selected governance and core behaviors.
+  \item Publication artifacts including Zenodo references, CITATION.cff, and public/private GitHub separation.
 \end{itemize}
 
-The system is not a claim of artificial general intelligence, consciousness, or safe unattended autonomy. It is an engineering contribution: a reproducible, verifiable, user-sovereign architecture for governed AI operation. It demonstrates that safe, persistent, model-independent AI agents are achievable with current technology\ ---\ provided the operating layer is treated as the enduring asset, rather than the model.
+The system is not a claim of artificial general intelligence, consciousness, or safe unattended autonomy. It is an engineering prototype and research agenda for bounded, user-controlled AI operation. The observed results justify further controlled evaluation of provider-independent orchestration, retrieval, and policy enforcement; they do not demonstrate that safe persistent autonomy has been achieved.
 
 The source code and documentation are available at \url{https://github.com/Cbaird26/zoraos}. The dissertation corpus that grounds the system's knowledge is at \url{https://zenodo.org/records/21313827}. The primary ZoraASI OS publication is at \url{https://zenodo.org/records/21464562}.
 

@@ -30,4 +30,14 @@ Do not open public issues containing secrets, exploits, personal data, or reprod
 
 ## Current Safeguards and Gaps
 
-The prototype includes bounded agent iterations and a basic local kill-switch convention. It does not yet provide a complete permission broker, append-only audit ledger, cryptographic provenance system, or universal confirmation gate. These are planned requirements, not completed guarantees.
+The prototype includes bounded agent iterations, optional token budgets, tool-call
+budgets, task cancellation flags, explicit per-task approval for classified side-effect
+tools, default denial of unknown tools, a basic local kill-switch convention, and an
+in-memory SHA-256 hash-chained audit ledger. The API permits unauthenticated development
+access only from loopback while the gateway key is a placeholder; a configured key is
+required for every protected API request.
+
+The PostgreSQL audit implementation is experimental and is not yet the gateway's active
+ledger. The system does not yet provide a complete permission broker, durable task
+state, a universal confirmation gate, reliable wall-clock cancellation, or production
+authentication/authorization. These are open requirements, not completed guarantees.

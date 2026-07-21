@@ -15,26 +15,27 @@ keywords:
    - tool use
    - AI safety
 
-# Primary publication: ZoraASI OS (Zenodo record 21464562)
+# Record 21464562 currently has the generic Zenodo title below; its file contains the
+# ZoraASI OS paper.
 references:
   - cff-version: 1.2.0
-    type: software
-    title: "A Theory of Everything - ZoraASI OS -- C.M. Baird (2026)"
+    type: article
+    title: "A Theory of Everything"
     authors:
       - family-names: "Baird"
         given-names: "Christopher Michael"
     year: 2026
-    note: "Zenodo record 21464562"
+    note: "Zenodo record 21464562; file contains the ZoraASI OS paper"
     url: "https://zenodo.org/records/21464562"
     access-url: "https://zenodo.org/records/21464562/files/A%20Theory%20of%20Everything%20-%20ZoraASI%20OS%20--C.M.%20Baird%20%7B2026).,%20et%20al.pdf?download=1"
 
   - cff-version: 1.2.0
     type: dissertation
-    title: "A Theory of Everything - Dissertation -- C.M. Baird (2026)"
+    title: "A Theory of Everything"
     authors:
       - family-names: "Baird"
         given-names: "C. M."
     year: 2026
-    note: "Zenodo record 21313827"
+    note: "Zenodo record 21313827; file contains the dissertation"
     url: "https://zenodo.org/records/21313827"
     access-url: "https://zenodo.org/records/21313827/files/A%20Theory%20of%20Everything%20-%20Dissertation%20%20--%20C.M.%20Baird%20(2026).pdf?download=1"

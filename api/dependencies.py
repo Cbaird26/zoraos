@@ -3,15 +3,8 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 
-from agents.implementations import (
-    ResearchAgent,
-    DeveloperAgent,
-    WriterAgent,
-    KnowledgeAgent,
-    GamingAgent,
-)
+from agents.implementations import register_builtin_agents
 from agents.manager import AgentManager
-from agents.registry import AgentRegistry
 from gateway.service import GatewayService
 from governance.audit import AuditLedger
 from governance.policy import GovernancePolicy
@@ -22,14 +15,14 @@ from models.providers import LiteLLMProvider, OpenRouterProvider
 from planner.engine import PlannerEngine
 from router.engine import RouterEngine
 from tools.implementations import (
-    FilesystemTool,
-    WebSearchTool,
-    PythonExecTool,
-    PDFReaderTool,
-    GitTool,
-    EQSendKeysTool,
     ECScreenReaderTool,
+    EQSendKeysTool,
     EQWaitTool,
+    FilesystemTool,
+    GitTool,
+    PDFReaderTool,
+    PythonExecTool,
+    WebSearchTool,
 )
 from tools.manager import ToolManager
 from tools.registry import ToolRegistry
@@ -37,9 +30,18 @@ from tools.registry import ToolRegistry
 
 def get_model_manager() -> ModelManager:
     from configs.settings import settings
+
     manager = ModelManager()
 
-    always_register = {"ollama", "openrouter"}
+    environment_keys = {
+        "openai": "OPENAI_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "kimi": "KIMI_API_KEY",
+        "qwen": "QWEN_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "grok": "XAI_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }
 
     for name, cfg in {
         "openai": settings.providers.openai,
@@ -51,21 +53,25 @@ def get_model_manager() -> ModelManager:
         "ollama": settings.providers.ollama,
         "openrouter": settings.providers.openrouter,
     }.items():
-        api_key = cfg.api_key or os.environ.get("OPENROUTER_API_KEY")
-        if api_key or name in always_register:
+        api_key = cfg.api_key or os.environ.get(environment_keys.get(name, ""))
+        if api_key or name == "ollama":
             if name == "openrouter":
-                provider = OpenRouterProvider({
-                    "api_key": api_key,
-                    "api_base": cfg.api_base,
-                    "model": cfg.model,
-                })
+                provider = OpenRouterProvider(
+                    {
+                        "api_key": api_key,
+                        "api_base": cfg.api_base,
+                        "model": cfg.model,
+                    }
+                )
             else:
-                provider = LiteLLMProvider({
-                    "api_key": cfg.api_key,
-                    "api_base": cfg.api_base,
-                    "model": cfg.model,
-                    "provider_name": name,
-                })
+                provider = LiteLLMProvider(
+                    {
+                        "api_key": api_key,
+                        "api_base": cfg.api_base,
+                        "model": cfg.model,
+                        "provider_name": name,
+                    }
+                )
             manager.register_provider(name, provider)
 
     return manager
@@ -89,7 +95,8 @@ def get_tool_registry() -> ToolRegistry:
     registry.register(PythonExecTool())
     registry.register(PDFReaderTool())
     registry.register(GitTool())
-    from tools.implementations.memory_tools import MemoryWriteTool, MemoryReadTool, MemorySearchTool
+    from tools.implementations.memory_tools import MemoryReadTool, MemorySearchTool, MemoryWriteTool
+
     registry.register(MemoryWriteTool(vector_store))
     registry.register(MemoryReadTool(doc_store))
     registry.register(MemorySearchTool(vector_store))
@@ -105,6 +112,7 @@ def get_tool_manager() -> ToolManager:
 
 
 def get_agent_manager() -> AgentManager:
+    register_builtin_agents()
     registry = get_tool_registry()
     tool_manager = ToolManager(registry, GovernancePolicy(), AuditLedger())
     return AgentManager(get_model_manager(), registry, tool_manager)
@@ -122,6 +130,7 @@ def get_router() -> RouterEngine:
 
 @lru_cache
 def get_gateway() -> GatewayService:
+    register_builtin_agents()
     model_manager = get_model_manager()
     tool_registry = get_tool_registry()
     audit_ledger = AuditLedger()
