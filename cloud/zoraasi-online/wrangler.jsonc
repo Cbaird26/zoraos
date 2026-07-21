@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zoraasi-online",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-21",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/health"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "zoraasi-online",
+      "database_id": "dd3553e6-7f01-4f63-863d-50ea0115f4dc",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "ZORA_DEFAULT_MODEL": "hy3",
+    "ZORA_MAX_PROMPT_CHARS": "16000",
+    "ZORA_MAX_OUTPUT_TOKENS": "800",
+    "ZORA_K3_MAX_REQUEST_USD": "0.08",
+    "ZORA_K3_DAILY_CAP_USD": "1.00",
+    "ZORA_REQUESTS_PER_MINUTE": "6",
+    "APPLE_CLIENT_ID": "com.cardiganincorporated.zoraasi.web",
+    "ZORA_PUBLIC_APP_URL": "https://zoraasi-online.zoraasi.workers.dev"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

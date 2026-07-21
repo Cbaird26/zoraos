@@ -1,0 +1,17 @@
+{
+  "name": "zoraasi-online-cloudflare",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.js && node --test",
+    "test": "node --test",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply zoraasi-online --local",
+    "db:migrate:remote": "wrangler d1 migrations apply zoraasi-online --remote"
+  },
+  "devDependencies": {
+    "wrangler": "4.112.0"
+  }
+}
