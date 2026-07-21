@@ -1,449 +1,623 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 
-/* ── Constants ── */
-const API = '/api';
-const COLORS = {
-  skin: 0xf5d6c6, hair: 0x2a1f3d, eye: 0x3a2a5a, iris: 0x8d6de8,
-  dress: 0x1a1a2e, dressAccent: 0x8d6de8, blush: 0xff8a80,
-  lip: 0xd47373, brow: 0x2a1f3d,
+/* ══════════════════════════════════════════════
+   ZORAASI — Governed Virtual Companion
+   Identity: ZoraASI is the container for the
+   Theory of Everything. Governed, bounded,
+   user-sovereign, warm, technically capable.
+   ══════════════════════════════════════════════ */
+
+/* ── Palette ── */
+const PALETTE = {
+  amber: 0xed9b69, violet: 0x8d6de8, teal: 0x3a9e6f, rose: 0xd47373,
+  ink: 0x06070b, panel: 0x0e0f17, frost: 0xe8e0d8, muted: 0x6b5f58,
+  skin: 0xf0d5c0, skinShadow: 0xd4b8a0, hair: 0x1a1228, hairHighlight: 0x2a1f3d,
+  eyeWhite: 0xf8f4f0, iris: 0x8d6de8, irisOuter: 0x6a4dc0, pupil: 0x0a0812,
+  lip: 0xd47373, blush: 0xf0a090, dress: 0x0e0f17, dressAccent: 0x8d6de8,
+  gold: 0xed9b69, goldEmissive: 0xed9b69,
 };
 
 /* ── Scene Setup ── */
+const container = document.getElementById('scene');
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 1.8, 5.5);
+scene.background = new THREE.Color(PALETTE.ink);
+scene.fog = new THREE.FogExp2(PALETTE.ink, 0.045);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+const camera = new THREE.PerspectiveCamera(28, window.innerWidth / window.innerHeight, 0.1, 30);
+camera.position.set(0, 2.2, 5.8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.bias = 0.0001;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
-document.getElementById('scene-container').appendChild(renderer.domElement);
+renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+container.appendChild(renderer.domElement);
 
-const labelRenderer = new CSS2DRenderer();
-labelRenderer.setSize(window.innerWidth, window.innerHeight);
-labelRenderer.domElement.style.position = 'absolute';
-labelRenderer.domElement.style.top = '0';
-labelRenderer.domElement.style.pointerEvents = 'none';
-document.getElementById('scene-container').appendChild(labelRenderer.domElement);
+/* ── Post-Processing ── */
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.15, 0.3, 0.1);
+composer.addPass(bloomPass);
 
 /* ── Lighting ── */
-const ambientLight = new THREE.AmbientLight(0x404060, 0.4);
-scene.add(ambientLight);
+const ambient = new THREE.HemisphereLight(PALETTE.frost, PALETTE.ink, 0.6);
+scene.add(ambient);
 
-const mainLight = new THREE.DirectionalLight(0xffeedd, 1.8);
-mainLight.position.set(3, 5, 4);
-mainLight.castShadow = true;
-mainLight.shadow.mapSize.width = 1024;
-mainLight.shadow.mapSize.height = 1024;
-scene.add(mainLight);
+const key = new THREE.DirectionalLight(0xffeedd, 2.2);
+key.position.set(4, 6, 5);
+key.castShadow = true;
+key.shadow.mapSize.width = 2048;
+key.shadow.mapSize.height = 2048;
+key.shadow.camera.near = 0.1;
+key.shadow.camera.far = 15;
+key.shadow.camera.left = -3;
+key.shadow.camera.right = 3;
+key.shadow.camera.top = 3;
+key.shadow.camera.bottom = -3;
+key.shadow.bias = -0.002;
+scene.add(key);
 
-const fillLight = new THREE.DirectionalLight(0x8888ff, 0.3);
-fillLight.position.set(-3, 2, -2);
-scene.add(fillLight);
+const fill = new THREE.DirectionalLight(0x8888ff, 0.35);
+fill.position.set(-3, 4, -2);
+scene.add(fill);
 
-const rimLight = new THREE.DirectionalLight(0x8d6de8, 0.5);
-rimLight.position.set(-1, 2, -4);
-scene.add(rimLight);
+const rim = new THREE.DirectionalLight(PALETTE.violet, 0.5);
+rim.position.set(-2, 1, -5);
+scene.add(rim);
 
-/* ── Build Character ── */
-const character = new THREE.Group();
+const accent = new THREE.DirectionalLight(PALETTE.amber, 0.2);
+accent.position.set(0, -1, 3);
+scene.add(accent);
 
-// Body (dress/torso)
-const bodyGeo = new THREE.CylinderGeometry(0.5, 0.65, 0.9, 16);
-const bodyMat = new THREE.MeshStandardMaterial({ color: COLORS.dress, roughness: 0.8, metalness: 0.1 });
-const body = new THREE.Mesh(bodyGeo, bodyMat);
-body.position.y = 0.45;
+/* ── Character ── */
+const char = new THREE.Group();
+
+function pbrMat(color, opts = {}) {
+  return new THREE.MeshStandardMaterial({
+    color, roughness: opts.roughness ?? 0.5, metalness: opts.metalness ?? 0,
+    emissive: opts.emissive ?? 0x000000, emissiveIntensity: opts.emissiveIntensity ?? 0,
+    transparent: opts.transparent ?? false, opacity: opts.opacity ?? 1,
+    side: opts.side ?? THREE.FrontSide,
+  });
+}
+
+// Platform / pedestal
+const pedestalMat = pbrMat(PALETTE.panel, { roughness: 0.7, metalness: 0.2 });
+const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 0.06, 48), pedestalMat);
+pedestal.position.y = -0.03;
+pedestal.receiveShadow = true;
+pedestal.castShadow = true;
+char.add(pedestal);
+
+const ringMat = pbrMat(PALETTE.amber, { emissive: PALETTE.amber, emissiveIntensity: 0.3, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.015, 16, 48), ringMat);
+ring.position.y = 0.02;
+ring.rotation.x = -Math.PI / 2;
+char.add(ring);
+
+const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.008, 16, 48), ringMat.clone());
+ring2.material.emissiveIntensity = 0.4;
+ring2.material.color.setHex(PALETTE.violet);
+ring2.material.emissive.setHex(PALETTE.violet);
+ring2.position.y = 0.015;
+ring2.rotation.x = -Math.PI / 2 + 0.1;
+char.add(ring2);
+
+// Body / dress
+const dressMat = pbrMat(PALETTE.dress, { roughness: 0.9, metalness: 0.05 });
+const bodyGeo = new THREE.CylinderGeometry(0.45, 0.6, 0.85, 20);
+const body = new THREE.Mesh(bodyGeo, dressMat);
+body.position.y = 0.42;
 body.castShadow = true;
-character.add(body);
+char.add(body);
 
-// Dress collar
-const collarGeo = new THREE.TorusGeometry(0.3, 0.05, 8, 16);
-const collarMat = new THREE.MeshStandardMaterial({ color: COLORS.dressAccent, emissive: COLORS.dressAccent, emissiveIntensity: 0.15 });
-const collar = new THREE.Mesh(collarGeo, collarMat);
-collar.position.y = 0.85;
-collar.rotation.x = Math.PI / 2;
-character.add(collar);
+// Dress collar / neckline
+const collarMat = pbrMat(PALETTE.dressAccent, { emissive: PALETTE.dressAccent, emissiveIntensity: 0.08, roughness: 0.3 });
+const collar = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.04, 12, 24), collarMat);
+collar.position.y = 0.82;
+collar.rotation.x = Math.PI / 2 * 0.85;
+char.add(collar);
 
 // Neck
-const neckGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.15, 12);
-const neckMat = new THREE.MeshStandardMaterial({ color: COLORS.skin });
-const neck = new THREE.Mesh(neckGeo, neckMat);
-neck.position.y = 0.95;
-character.add(neck);
+const neckMat = pbrMat(PALETTE.skin, { roughness: 0.6 });
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.12, 16), neckMat);
+neck.position.y = 0.92;
+char.add(neck);
 
 // Head
-const headGeo = new THREE.SphereGeometry(0.35, 24, 24);
-const headMat = new THREE.MeshStandardMaterial({ color: COLORS.skin, roughness: 0.5 });
-const head = new THREE.Mesh(headGeo, headMat);
-head.position.y = 1.15;
+const headMat = pbrMat(PALETTE.skin, { roughness: 0.45 });
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 28, 28), headMat);
+head.position.y = 1.08;
 head.castShadow = true;
-character.add(head);
+char.add(head);
 
-// Hair base
-const hairMat = new THREE.MeshStandardMaterial({ color: COLORS.hair, roughness: 0.9 });
-function addHair(x, z, w, h, d, yOff) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  const m = new THREE.Mesh(g, hairMat);
-  m.position.set(x, 1.15 + yOff, z);
-  character.add(m);
+// Hair
+const hairMat = pbrMat(PALETTE.hair, { roughness: 0.95 }); 
+const hairMatHighlight = pbrMat(PALETTE.hairHighlight, { roughness: 0.9 });
+function addHair(x, y, z, w, h, d, mat = hairMat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  char.add(m);
   return m;
 }
-addHair(0, 0, 0.66, 0.2, 0.66, 0.2); // top
-addHair(-0.32, 0, 0.06, 0.12, 0.5, 0.15); // left
-addHair(0.32, 0, 0.06, 0.12, 0.5, 0.15); // right
-addHair(0, -0.3, 0.3, 0.08, 0.06, 0.1); // bangs
-addHair(0.15, -0.3, 0.12, 0.08, 0.06, 0.12); // side bang
-addHair(-0.15, -0.3, 0.12, 0.08, 0.06, 0.12); // side bang
-// Hair back
-addHair(0, 0.32, 0.5, 0.15, 0.1, 0.12);
-addHair(0, 0.35, 0.4, 0.25, 0.08, 0.06);
+addHair(0, 1.08, 0, 0.6, 0.18, 0.6); // top dome
+addHair(0, 1.16, 0, 0.56, 0.12, 0.56);
+addHair(0, 1.22, 0, 0.44, 0.1, 0.44);
+// Sides
+const hairMatSide = pbrMat(PALETTE.hair, { roughness: 0.9 });
+addHair(-0.29, 1.05, 0, 0.06, 0.1, 0.42, hairMatSide);
+addHair(0.29, 1.05, 0, 0.06, 0.1, 0.42, hairMatSide);
+// Bangs
+const hairMatFront = pbrMat(PALETTE.hair, { roughness: 0.85 });
+addHair(0, 1.08, -0.28, 0.28, 0.06, 0.04, hairMatFront);
+addHair(0.12, 1.09, -0.28, 0.1, 0.06, 0.04, hairMatFront);
+addHair(-0.12, 1.09, -0.28, 0.1, 0.06, 0.04, hairMatFront);
+// Long back
+addHair(0, 1.0, 0.28, 0.38, 0.16, 0.08, hairMat);
+addHair(0, 0.92, 0.3, 0.3, 0.14, 0.06, hairMat);
 
 // Eyes
-const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-const eyeIrisMat = new THREE.MeshStandardMaterial({ color: COLORS.iris, emissive: COLORS.iris, emissiveIntensity: 0.3 });
-const eyePupilMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+const eyeWhiteMat = pbrMat(PALETTE.eyeWhite, { roughness: 0.1 });
+const irisMat = pbrMat(PALETTE.iris, { emissive: PALETTE.iris, emissiveIntensity: 0.2, roughness: 0.2 });
+const irisOuterMat = pbrMat(PALETTE.irisOuter, { roughness: 0.3 });
+const pupilMat = pbrMat(PALETTE.pupil, { roughness: 0.1 });
+const eyelidMat = pbrMat(PALETTE.skin, { roughness: 0.5 });
 
-function makeEye(x) {
-  const group = new THREE.Group();
-  const white = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), eyeWhiteMat);
-  group.add(white);
-  const iris = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 12), eyeIrisMat);
-  iris.position.z = 0.06;
-  group.add(iris);
-  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), eyePupilMat);
-  pupil.position.z = 0.08;
-  group.add(pupil);
-  group.position.set(x, 1.2, -0.3);
-  // Upper eyelid
-  const lidMat = new THREE.MeshStandardMaterial({ color: COLORS.skin });
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.015, 0.05), lidMat);
-  lid.position.y = 0.05;
-  group.add(lid);
-  return group;
+function buildEye(x) {
+  const g = new THREE.Group();
+  const white = new THREE.Mesh(new THREE.SphereGeometry(0.08, 20, 20), eyeWhiteMat);
+  g.add(white);
+  const outer = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), irisOuterMat);
+  outer.position.z = 0.05;
+  g.add(outer);
+  const iris = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), irisMat);
+  iris.position.z = 0.07;
+  g.add(iris);
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 10), pupilMat);
+  pupil.position.z = 0.09;
+  g.add(pupil);
+  // Upper lid
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.012, 0.04), eyelidMat);
+  lid.position.y = 0.04;
+  lid.position.z = 0.02;
+  g.add(lid);
+  // Lower lid
+  const lower = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.008, 0.03), eyelidMat);
+  lower.position.y = -0.04;
+  lower.position.z = 0.02;
+  g.add(lower);
+  g.position.set(x, 1.13, -0.28);
+  return g;
 }
-const leftEye = makeEye(-0.12);
-const rightEye = makeEye(0.12);
-character.add(leftEye);
-character.add(rightEye);
-
-// Blush
-const blushMat = new THREE.MeshStandardMaterial({ color: COLORS.blush, transparent: true, opacity: 0.3 });
-function addBlush(x) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), blushMat);
-  m.position.set(x, 1.08, -0.32);
-  m.scale.set(1, 0.6, 0.5);
-  character.add(m);
-}
-addBlush(-0.19);
-addBlush(0.19);
-
-// Mouth group (for expressions)
-const mouthGroup = new THREE.Group();
-mouthGroup.position.set(0, 1.08, -0.33);
-const mouthMat = new THREE.MeshStandardMaterial({ color: COLORS.lip, roughness: 0.4 });
-const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), mouthMat);
-mouth.scale.set(1.2, 0.3, 0.5);
-mouthGroup.add(mouth);
-character.add(mouthGroup);
+const lEye = buildEye(-0.1);
+const rEye = buildEye(0.1);
+char.add(lEye);
+char.add(rEye);
 
 // Eyebrows
-const browMat = new THREE.MeshStandardMaterial({ color: COLORS.brow });
-function addBrow(x, angle) {
-  const g = new THREE.BoxGeometry(0.1, 0.02, 0.02);
-  const m = new THREE.Mesh(g, browMat);
-  m.position.set(x, 1.28, -0.32);
+const browMat = pbrMat(PALETTE.hair, { roughness: 0.8 });
+function brow(x, angle) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.015, 0.015), browMat);
+  m.position.set(x, 1.19, -0.3);
   m.rotation.z = angle;
-  character.add(m);
+  char.add(m);
   return m;
 }
-const leftBrow = addBrow(-0.12, 0);
-const rightBrow = addBrow(0.12, 0);
+const lBrow = brow(-0.1, 0);
+const rBrow = brow(0.1, 0);
+
+// Blush
+const blushMat = pbrMat(PALETTE.blush, { transparent: true, opacity: 0.2, roughness: 0.9 });
+function blush(x) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 10), blushMat);
+  m.position.set(x, 1.01, -0.3);
+  m.scale.set(1.2, 0.5, 0.4);
+  char.add(m);
+}
+blush(-0.17);
+blush(0.17);
+
+// Mouth
+const mouthGroup = new THREE.Group();
+mouthGroup.position.set(0, 1.0, -0.3);
+const lipMat = pbrMat(PALETTE.lip, { roughness: 0.35 });
+const lipUpper = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 10), lipMat);
+lipUpper.scale.set(1.3, 0.25, 0.4);
+lipUpper.position.y = 0.005;
+mouthGroup.add(lipUpper);
+const lipLower = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 10), lipMat);
+lipLower.scale.set(1.1, 0.2, 0.35);
+lipLower.position.y = -0.005;
+mouthGroup.add(lipLower);
+char.add(mouthGroup);
 
 // Arms
-const armMat = new THREE.MeshStandardMaterial({ color: COLORS.skin, roughness: 0.5 });
+const armMat = pbrMat(PALETTE.skin, { roughness: 0.6 });
 function makeArm(x, rot) {
-  const g = new THREE.CylinderGeometry(0.055, 0.06, 0.45, 8);
-  const m = new THREE.Mesh(g, armMat);
-  m.position.set(x, 0.7, 0);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.052, 0.4, 10), armMat);
+  m.position.set(x, 0.65, 0);
   m.rotation.z = rot;
   m.castShadow = true;
-  character.add(m);
+  char.add(m);
   return m;
 }
-const leftArm = makeArm(-0.55, 0.15);
-const rightArm = makeArm(0.55, -0.15);
+const lArm = makeArm(-0.5, 0.12);
+const rArm = makeArm(0.5, -0.12);
 
 // Hands
-const handMat = new THREE.MeshStandardMaterial({ color: COLORS.skin });
-function addHand(x, y, z) {
-  const h = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), handMat);
+const handMat = pbrMat(PALETTE.skin, { roughness: 0.5 });
+function hand(x, y, z) {
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), handMat);
   h.position.set(x, y, z);
-  character.add(h);
-  return h;
+  char.add(h);
 }
-addHand(-0.52, 0.48, 0);
-addHand(0.52, 0.48, 0);
+hand(-0.48, 0.45, 0);
+hand(0.48, 0.45, 0);
 
-// Base/platform
-const platformMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.9, metalness: 0.1 });
-const platform = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.0, 0.08, 32), platformMat);
-platform.position.y = -0.04;
-platform.receiveShadow = true;
-platform.castShadow = true;
-character.add(platform);
+scene.add(char);
 
-// Glow ring
-const glowMat = new THREE.MeshStandardMaterial({
-  color: COLORS.dressAccent, emissive: COLORS.dressAccent, emissiveIntensity: 0.3,
-  transparent: true, opacity: 0.3, side: THREE.DoubleSide,
-});
-const glowRing = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.45, 32), glowMat);
-glowRing.position.y = 0.01;
-glowRing.rotation.x = -Math.PI / 2;
-character.add(glowRing);
+/* ── Expressions ── */
+const EXPR = {
+  idle:     { s: 0.25, bL: 0,    bR: 0,    eO: 1,   hT: 0,   aS: 0.4, eI: 0.15, label: 'zoraasi' },
+  happy:    { s: 0.75, bL: -0.08, bR: 0.08, eO: 1.1, hT: 0.04, aS: 0.7, eI: 0.3,  label: 'zoraasi' },
+  thinking: { s: 0.1,  bL: 0.12, bR: -0.1, eO: 0.6, hT: 0.07, aS: 0.15, eI: 0.2,  label: '·' },
+  sad:      { s: -0.15, bL: 0.08, bR: 0.08, eO: 0.55, hT: -0.04, aS: 0.2, eI: 0.1,  label: '·' },
+  speaking: { s: 0.35, bL: 0,    bR: 0,    eO: 0.95, hT: 0.02, aS: 0.5, eI: 0.25, label: 'zoraasi' },
+  listening:{ s: 0.2,  bL: 0.04, bR: 0.04, eO: 0.85, hT: 0.03, aS: 0.3, eI: 0.18, label: 'zoraasi' },
+  excited:  { s: 0.9,  bL: -0.12, bR: 0.12, eO: 1.25, hT: 0.08, aS: 0.9, eI: 0.5,  label: 'zoraasi' },
+  error:    { s: -0.2, bL: 0.06, bR: 0.06, eO: 0.5, hT: -0.03, aS: 0.15, eI: 0.1,  label: '·' },
+};
+let curExpr = 'idle';
+let exprT = 1;
+const TARGET = { ...EXPR.idle };
 
-scene.add(character);
+function setExpression(name) {
+  if (!EXPR[name]) return;
+  if (curExpr === name) return;
+  curExpr = name;
+  exprT = 0;
+}
 
 /* ── Scenes ── */
-const scenes = {
-  chamber: { background: [0x0a0b12, 0x1a1a2e], fog: 0x0a0b12, props: [] },
-  cafe: { background: [0x1a1210, 0x2a2018], fog: 0x1a1210, props: [] },
-  garden: { background: [0x0a1a10, 0x1a2a18], fog: 0x0a1a10, props: [] },
-  study: { background: [0x10101a, 0x181828], fog: 0x10101a, props: [] },
+const sceneDefs = {
+  chamber: { bg: [0x06070b, 0x0e0f17], fogD: 0.045, floorC: PALETTE.panel },
+  cafe:    { bg: [0x141010, 0x1a1410], fogD: 0.06, floorC: { r: 0.12, g: 0.08, b: 0.06 } },
+  garden:  { bg: [0x081410, 0x101a12], fogD: 0.055, floorC: { r: 0.06, g: 0.12, b: 0.08 } },
+  study:   { bg: [0x0a0810, 0x120e1a], fogD: 0.05, floorC: PALETTE.panel },
+  observatory: { bg: [0x04060e, 0x080a18], fogD: 0.035, floorC: 0x080a18 },
 };
-
-let currentScene = 'chamber';
+let curScene = 'chamber';
 
 function buildScene(name) {
-  const cfg = scenes[name];
-  while (scene.children.length > 1) {
-    const c = scene.children[scene.children.length - 1];
-    if (c === character || c === mainLight || c === fillLight || c === rimLight || c === ambientLight) break;
-    scene.remove(c);
-  }
-  scene.background = new THREE.Color(cfg.background[0]);
-  scene.fog = new THREE.Fog(cfg.fog, 3, 8);
-  scene.environment = null;
+  const cfg = sceneDefs[name];
+  if (!cfg) return;
 
-  // Ground
-  const groundMat = new THREE.MeshStandardMaterial({
-    color: cfg.background[0], roughness: 1, metalness: 0, transparent: true, opacity: 0.6,
-  });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.08;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
-  // Scene-specific props
-  if (name === 'cafe') {
-    addTable(0.8, 0.1, 0.5);
-    addTable(-0.8, 0.1, -0.3);
-    addLamp(1.5, 0.2, 1.2);
-  } else if (name === 'garden') {
-    addTree(1.2, 0.1, 0.8);
-    addTree(-1.0, 0.1, -0.6);
-    addFlowers();
-  } else if (name === 'study') {
-    addBookshelf(1.3, 0.1, 0.5);
-    addBookshelf(-1.0, 0.1, -0.3);
+  // Remove scene children (everything except char + lights)
+  const keep = new Set([char, key, fill, rim, accent, ambient]);
+  for (let i = scene.children.length - 1; i >= 0; i--) {
+    const c = scene.children[i];
+    if (!keep.has(c)) scene.remove(c);
   }
-  // Chamber: floating particles
-  if (name === 'chamber') {
-    addParticles();
+  
+  scene.background = new THREE.Color(cfg.bg[0]);
+  scene.fog = new THREE.FogExp2(cfg.bg[0], cfg.fogD);
+
+  // Floor
+  const flMat = new THREE.MeshStandardMaterial({ color: cfg.floorC, roughness: 0.9, metalness: 0.05, transparent: true, opacity: 0.5 });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), flMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.06;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Scene decorations
+  if (name === 'chamber') chamberDecor();
+  else if (name === 'cafe') cafeDecor();
+  else if (name === 'garden') gardenDecor();
+  else if (name === 'study') studyDecor();
+  else if (name === 'observatory') observatoryDecor();
+}
+
+function chamberDecor() {
+  // Floating particles
+  const count = 80;
+  const pos = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    pos[i*3] = (Math.random() - 0.5) * 5;
+    pos[i*3+1] = Math.random() * 3;
+    pos[i*3+2] = (Math.random() - 0.5) * 4;
+    sizes[i] = 0.005 + Math.random() * 0.01;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  const mat = new THREE.PointsMaterial({ color: PALETTE.violet, size: 0.008, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false });
+  const pts = new THREE.Points(geo, mat);
+  pts.position.y = 0.5;
+  scene.add(pts);
+  // Pillars
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    const r = 1.8;
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.3, 8),
+      new THREE.MeshStandardMaterial({ color: PALETTE.panel, roughness: 0.8, metalness: 0.2 }));
+    p.position.set(Math.cos(a) * r, 0.12 + 0.15, Math.sin(a) * r);
+    scene.add(p);
   }
 }
 
-function addTable(x, y, z) {
-  const tMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.8 });
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.04, 8), tMat);
-  top.position.set(x, y + 0.12, z);
+function cafeDecor() {
+  // Warm lamp
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12),
+    new THREE.MeshStandardMaterial({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.8 }));
+  lamp.position.set(1.2, 0.35, 0.8);
+  scene.add(lamp);
+  // Table
+  const tMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.9 });
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 0.03, 12), tMat);
+  top.position.set(0.8, 0.08, 0.5);
+  top.castShadow = true;
   scene.add(top);
-  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2, 6), tMat);
-  leg.position.set(x, y, z);
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.12, 6), tMat);
+  leg.position.set(0.8, 0.01, 0.5);
   scene.add(leg);
-}
-
-function addLamp(x, y, z) {
-  const lampMat = new THREE.MeshStandardMaterial({ color: 0xed9b69, emissive: 0xed9b69, emissiveIntensity: 0.4 });
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), lampMat);
-  glow.position.set(x, y + 0.3, z);
+  // Second table
+  const top2 = top.clone(); top2.position.set(-0.7, 0.08, -0.4);
+  scene.add(top2);
+  const leg2 = leg.clone(); leg2.position.set(-0.7, 0.01, -0.4);
+  scene.add(leg2);
+  // Ambient warmth
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12),
+    new THREE.MeshBasicMaterial({ color: PALETTE.amber, transparent: true, opacity: 0.04 }));
+  glow.position.set(1.2, 0.3, 0.8);
   scene.add(glow);
 }
 
-function addTree(x, y, z) {
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.3, 6), new THREE.MeshStandardMaterial({ color: 0x3a2a1a }));
-  trunk.position.set(x, y + 0.15, z);
-  scene.add(trunk);
-  const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 6), new THREE.MeshStandardMaterial({ color: 0x2a4a2a }));
-  leaves.position.set(x, y + 0.4, z);
-  scene.add(leaves);
-}
-
-function addFlowers() {
-  for (let i = 0; i < 8; i++) {
-    const x = (Math.random() - 0.5) * 2.5;
-    const z = (Math.random() - 0.5) * 2.5;
-    if (Math.abs(x) < 0.4 && Math.abs(z) < 0.4) continue;
-    const fMat = new THREE.MeshStandardMaterial({ color: [0xed9b69, 0x8d6de8, 0xd47373, 0x69d4b0][Math.floor(Math.random() * 4)] });
-    const f = new THREE.Mesh(new THREE.SphereGeometry(0.025, 4, 4), fMat);
-    f.position.set(x, 0.02, z);
+function gardenDecor() {
+  // Trees
+  function tree(x, z, s = 1) {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.025*s, 0.035*s, 0.25*s, 6),
+      new THREE.MeshStandardMaterial({ color: 0x2a1a10 }));
+    trunk.position.set(x, 0.08*s, z);
+    scene.add(trunk);
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.12*s, 6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x1a3a1a, roughness: 0.9 }));
+    leaf.position.set(x, 0.22*s, z);
+    scene.add(leaf);
+  }
+  tree(1.0, 0.6, 1.2);
+  tree(-0.9, -0.5, 1);
+  tree(0.5, -0.9, 0.8);
+  // Flowers
+  const colors = [PALETTE.amber, PALETTE.violet, PALETTE.rose, PALETTE.teal];
+  for (let i = 0; i < 12; i++) {
+    const x = (Math.random() - 0.5) * 3;
+    const z = (Math.random() - 0.5) * 3;
+    if (Math.hypot(x, z) < 0.5) continue;
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.015, 4, 4),
+      new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * 4)] }));
+    f.position.set(x, 0.01, z);
     scene.add(f);
   }
-}
-
-function addBookshelf(x, y, z) {
-  const sMat = new THREE.MeshStandardMaterial({ color: 0x2a1f3d, roughness: 0.9 });
-  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.08), sMat);
-  shelf.position.set(x, y + 0.2, z);
-  scene.add(shelf);
-  for (let i = 0; i < 4; i++) {
-    const color = [0x8d6de8, 0xed9b69, 0x3a9e6f, 0xd47373][i];
-    const book = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.02), new THREE.MeshStandardMaterial({ color }));
-    book.position.set(x - 0.1 + i * 0.06, y + 0.22, z - 0.05);
-    scene.add(book);
+  // Hanging vine
+  const vineMat = new THREE.MeshStandardMaterial({ color: 0x1a2a1a, transparent: true, opacity: 0.4 });
+  for (let i = 0; i < 6; i++) {
+    const x = (Math.random() - 0.5) * 2.5;
+    const v = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.005, 0.1 + Math.random()*0.15, 4), vineMat);
+    v.position.set(x, 0.18, -1.2);
+    scene.add(v);
   }
 }
 
-function addParticles() {
-  const count = 60;
+function studyDecor() {
+  // Bookshelves
+  function shelf(x, z) {
+    const sMat = new THREE.MeshStandardMaterial({ color: 0x1a1228, roughness: 0.9 });
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.35, 0.06), sMat);
+    s.position.set(x, 0.17, z);
+    scene.add(s);
+    const bColors = [PALETTE.amber, PALETTE.violet, PALETTE.rose, PALETTE.teal, 0x3a2a5a, 0x5a3a2a];
+    for (let i = 0; i < 5; i++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.06, 0.02),
+        new THREE.MeshStandardMaterial({ color: bColors[i % bColors.length] }));
+      b.position.set(x - 0.09 + i * 0.045, 0.18, z - 0.04);
+      scene.add(b);
+    }
+  }
+  shelf(1.0, 0.6);
+  shelf(-0.9, -0.4);
+  // Desk lamp
+  const dl = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8),
+    new THREE.MeshStandardMaterial({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.3 }));
+  dl.position.set(0.5, 0.1, -0.3);
+  scene.add(dl);
+}
+
+function observatoryDecor() {
+  // Stars
+  const starCount = 300;
+  const pos = new Float32Array(starCount * 3);
+  for (let i = 0; i < starCount * 3; i++) pos[i] = (Math.random() - 0.5) * 20;
   const geo = new THREE.BufferGeometry();
-  const pos = new Float32Array(count * 3);
-  for (let i = 0; i < count * 3; i++) pos[i] = (Math.random() - 0.5) * 4;
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.PointsMaterial({ color: 0x8d6de8, size: 0.008, transparent: true, opacity: 0.4 });
-  const pts = new THREE.Points(geo, mat);
-  pts.position.y = 1;
-  scene.add(pts);
+  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.008, transparent: true, opacity: 0.5 });
+  const stars = new THREE.Points(geo, mat);
+  stars.position.y = 2;
+  scene.add(stars);
+  // Constellations
+  function constel(pts, col = PALETTE.amber) {
+    const g = new THREE.BufferGeometry();
+    const p = new Float32Array(pts.flat());
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+    const m = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.15, depthWrite: false });
+    const l = new THREE.Line(g, m);
+    l.position.y = 1;
+    scene.add(l);
+  }
+  constel([[-0.5,0.5,-1], [0,0.8,-1.2], [0.5,0.5,-1], [0.8,0.2,-0.8]]);
+  constel([[-0.3,-0.2,-1.5], [0.2,0,-1.3], [0.5,-0.3,-1.4], [0.1,-0.5,-1.6]], PALETTE.violet);
+  // Orbital ring
+  const orbMat = new THREE.MeshBasicMaterial({ color: PALETTE.violet, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false });
+  const orb = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.62, 64), orbMat);
+  orb.position.y = 0.5;
+  scene.add(orb);
 }
 
 buildScene('chamber');
 
-/* ── Expressions ── */
-const expressionTargets = {
-  idle: { smile: 0.3, browL: 0, browR: 0, eyeOpen: 1, headTilt: 0, armSway: 0.5 },
-  happy: { smile: 0.8, browL: -0.1, browR: 0.1, eyeOpen: 1.2, headTilt: 0.05, armSway: 0.8 },
-  thinking: { smile: 0.1, browL: 0.15, browR: -0.15, eyeOpen: 0.7, headTilt: 0.08, armSway: 0.1 },
-  sad: { smile: -0.2, browL: 0.1, browR: 0.1, eyeOpen: 0.6, headTilt: -0.05, armSway: 0.2 },
-  speaking: { smile: 0.4, browL: 0, browR: 0, eyeOpen: 1, headTilt: 0.03, armSway: 0.6 },
-  listening: { smile: 0.2, browL: 0.05, browR: 0.05, eyeOpen: 0.9, headTilt: 0.04, armSway: 0.3 },
-  excited: { smile: 0.9, browL: -0.15, browR: 0.15, eyeOpen: 1.3, headTilt: 0.1, armSway: 1.0 },
-};
-
-let currentExpression = 'idle';
-let expressionLerp = 0;
-
-function setExpression(name) {
-  if (!expressionTargets[name]) return;
-  currentExpression = name;
-  expressionLerp = 0;
-}
-
-/* ── Animation Loop ── */
-let animTime = 0;
+/* ── Animation ── */
 const clock = new THREE.Clock();
+let time = 0;
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  animTime += dt;
+  const dt = Math.min(clock.getDelta(), 0.05);
+  time += dt;
 
-  // Expression interpolation
-  expressionLerp = Math.min(1, expressionLerp + dt * 3);
-  const t = expressionLerp;
-  const e = expressionTargets[currentExpression] || expressionTargets.idle;
+  // Expression blend
+  exprT = Math.min(1, exprT + dt * 2.5);
+  const e0 = TARGET;
+  const e1 = EXPR[curExpr] || EXPR.idle;
+  // Ease in-out
+  const t = exprT < 0.5 ? 2 * exprT * exprT : 1 - (-2 * exprT + 2) ** 2 / 2;
+  const s = e0.s + (e1.s - e0.s) * t;
+  const bL = e0.bL + (e1.bL - e0.bL) * t;
+  const bR = e0.bR + (e1.bR - e0.bR) * t;
+  const eO = e0.eO + (e1.eO - e0.eO) * t;
+  const hT = e0.hT + (e1.hT - e0.hT) * t;
+  const aS = e0.aS + (e1.aS - e0.aS) * t;
+  const eI = e0.eI + (e1.eI - e0.eI) * t;
 
-  // Smile → mouth shape
-  const smileScale = 1 + e.smile * 0.5;
-  mouth.scale.x = 1.2 * (0.6 + 0.4 * smileScale);
-  mouth.scale.y = 0.3 * (0.3 + 0.7 * (e.smile > 0 ? 1 + e.smile : 1 - e.smile * 0.5));
-  mouthGroup.position.y = 1.08 - e.smile * 0.01;
+  if (exprT >= 0.99) { Object.assign(TARGET, e1); }
+
+  // Mouth
+  const sm = 1 + s * 0.4;
+  lipUpper.scale.x = 1.3 * (0.5 + 0.5 * sm);
+  lipUpper.scale.y = 0.25 * (0.2 + 0.8 * (s > 0 ? 1 + s * 0.5 : Math.max(0.2, 1 + s * 0.8)));
+  lipLower.scale.x = 1.1 * (0.5 + 0.5 * sm);
+  lipLower.scale.y = 0.2 * (0.2 + 0.8 * (s > 0 ? 1 + s * 0.3 : Math.max(0.15, 1 + s * 0.6)));
+  mouthGroup.position.y = 1.0 - s * 0.008;
 
   // Eyebrows
-  leftBrow.rotation.z = e.browL;
-  rightBrow.rotation.z = e.browR;
+  lBrow.rotation.z = bL;
+  rBrow.rotation.z = bR;
 
-  // Eyes (blink)
-  const blinkCycle = Math.sin(animTime * 3);
-  const eyeOpen = Math.max(0.15, 1 - (blinkCycle > 0.95 ? (blinkCycle - 0.95) * 20 : 0)) * e.eyeOpen;
-  leftEye.scale.y = eyeOpen;
-  rightEye.scale.y = eyeOpen;
+  // Blink
+  const blink = Math.max(0.1, 1 - (Math.sin(time * 3) > 0.92 ? (Math.sin(time * 3) - 0.92) * 13 : 0));
+  const eyeScale = blink * eO;
+  lEye.scale.y = eyeScale;
+  rEye.scale.y = eyeScale;
 
   // Head tilt
-  character.rotation.z = e.headTilt * 0.3;
+  char.rotation.z = hT;
 
-  // Gentle breathing
-  const breathe = Math.sin(animTime * 1.2) * 0.003;
-  body.position.y = 0.45 + breathe;
-  head.position.y = 1.15 + breathe;
+  // Breathing
+  const breathe = Math.sin(time * 1.1) * 0.002 * (0.5 + aS * 0.5);
+  body.position.y = 0.42 + breathe;
+  head.position.y = 1.08 + breathe;
+  neck.position.y = 0.92 + breathe;
 
   // Arm sway
-  const sway = Math.sin(animTime * 0.8) * 0.03 * e.armSway;
-  leftArm.rotation.z = 0.15 + sway;
-  rightArm.rotation.z = -0.15 - sway;
+  const armSway = Math.sin(time * 0.7) * 0.025 * aS;
+  lArm.rotation.z = 0.12 + armSway;
+  rArm.rotation.z = -0.12 - armSway;
 
-  // Glow pulse
-  glowRing.material.emissiveIntensity = 0.2 + Math.sin(animTime * 0.5) * 0.1;
+  // Glow rings
+  ring.material.emissiveIntensity = 0.15 + eI + Math.sin(time * 0.5) * 0.08;
+  ring2.material.emissiveIntensity = 0.2 + eI * 0.5 + Math.sin(time * 0.7 + 1) * 0.1;
+  ring.rotation.z = Math.sin(time * 0.15) * 0.05;
+  ring2.rotation.z = Math.sin(time * 0.12 + 0.5) * 0.08;
 
-  // Platform rotation
-  platform.rotation.y = animTime * 0.1;
+  // Pedestal slow rotation
+  pedestal.rotation.y = time * 0.04;
+  ring.rotation.y = time * 0.1;
+  ring2.rotation.y = time * 0.08;
 
   // Camera orbit
-  const camRadius = 5.5;
-  const camTheta = Math.sin(animTime * 0.03) * 0.15;
-  camera.position.x = Math.sin(camTheta) * camRadius;
-  camera.position.z = Math.cos(camTheta) * camRadius;
-  camera.lookAt(0, 1.2, 0);
+  const cTheta = Math.sin(time * 0.025) * 0.2;
+  const cRad = 5.8;
+  camera.position.x = Math.sin(cTheta) * cRad;
+  camera.position.z = Math.cos(cTheta) * cRad;
+  camera.position.y = 2.2 + Math.sin(time * 0.015) * 0.08;
+  camera.lookAt(0, 1.1, 0);
 
-  renderer.render(scene, camera);
-  labelRenderer.render(scene, camera);
+  composer.render();
 }
 
 animate();
 
-/* ── Window Resize ── */
+/* ── Resize ── */
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-/* ── Chat System ── */
-const chatBox = document.getElementById('chat-box');
-const input = document.getElementById('message-input');
-const sendBtn = document.getElementById('send-btn');
-const statusDot = document.getElementById('status-dot');
-const statusText = document.getElementById('status-text');
-const expressionLabel = document.getElementById('expression-label');
+/* ════════════════════════════════════════
+   UI Integration
+   ════════════════════════════════════════ */
 
-function appendMessage(role, text) {
+const chatBox = document.getElementById('chat-box');
+const inp = document.getElementById('inp');
+const sendBtn = document.getElementById('send-btn');
+const dot = document.getElementById('dot');
+const statusText = document.getElementById('status-text');
+const exprLabel = document.getElementById('expr-label');
+const govPanel = document.getElementById('gov-panel');
+const govToggle = document.getElementById('gov-toggle');
+
+// Governance panel references
+const govBudget = document.getElementById('gov-budget');
+const govTasks = document.getElementById('gov-tasks');
+const govTools = document.getElementById('gov-tools');
+const govTokens = document.getElementById('gov-tokens');
+const govAudit = document.getElementById('gov-audit');
+const govPolicy = document.getElementById('gov-policy');
+const govModel = document.getElementById('gov-model');
+
+let govVisible = false;
+govToggle.addEventListener('click', () => {
+  govVisible = !govVisible;
+  govPanel.classList.toggle('hidden', !govVisible);
+  govToggle.classList.toggle('hidden', govVisible);
+});
+
+function appendMsg(role, text) {
   const div = document.createElement('div');
-  div.className = `msg ${role}`;
-  div.textContent = text;
+  div.className = `m ${role}`;
+  const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  div.innerHTML = `${text} <span class="ts">${ts}</span>`;
   chatBox.appendChild(div);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-appendMessage('system', 'Zora is here. Speak to her.');
+appendMsg('s', 'I am ZoraASI — governed, bounded, and yours. Speak freely.');
 
-function setOnline(online) {
-  statusDot.style.background = online ? '#3a9e6f' : '#d47373';
-  statusText.textContent = online ? 'connected' : 'disconnected';
+function setOnline(on) {
+  dot.style.background = on ? '#3a9e6f' : '#d47373';
+  dot.style.boxShadow = on ? '0 0 10px rgba(58,158,111,0.4)' : '0 0 10px rgba(212,115,115,0.4)';
+  statusText.textContent = on ? 'governed' : 'offline';
 }
 
 async function sendMessage(text) {
   if (!text.trim()) return;
-  appendMessage('user', text);
-  input.value = '';
+  appendMsg('u', text);
+  inp.value = '';
   sendBtn.disabled = true;
   setExpression('listening');
-  expressionLabel.textContent = 'listening';
+  exprLabel.textContent = '·';
+  exprLabel.style.color = '#8d6de8';
   statusText.textContent = 'thinking…';
 
   try {
@@ -454,82 +628,101 @@ async function sendMessage(text) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Request failed');
-    appendMessage('zora', data.reply);
+    appendMsg('z', data.reply);
     setExpression('happy');
-    expressionLabel.textContent = 'zora';
-    statusText.textContent = 'connected';
-
-    // Auto-swipe expression back to idle
+    exprLabel.textContent = 'zoraasi';
+    exprLabel.style.color = '#ed9b69';
+    statusText.textContent = 'governed';
     setTimeout(() => { setExpression('idle'); }, 3000);
   } catch (err) {
-    appendMessage('system', err.message);
-    setExpression('sad');
-    expressionLabel.textContent = 'error';
-    setTimeout(() => { setExpression('idle'); }, 2000);
+    appendMsg('s', err.message);
+    setExpression('error');
+    exprLabel.textContent = '·';
+    exprLabel.style.color = '#d47373';
+    setTimeout(() => { setExpression('idle'); }, 2500);
   } finally {
     sendBtn.disabled = false;
-    input.focus();
+    inp.focus();
   }
 }
 
-sendBtn.addEventListener('click', () => sendMessage(input.value));
-input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(input.value); });
+sendBtn.addEventListener('click', () => sendMessage(inp.value));
+inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(inp.value); });
 
 /* ── Scene Switching ── */
-document.querySelectorAll('.scene-btn').forEach((btn) => {
+document.querySelectorAll('.sc-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.scene-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.sc-btn').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     const name = btn.dataset.scene;
-    currentScene = name;
+    curScene = name;
     buildScene(name);
     setExpression('excited');
-    expressionLabel.textContent = name;
-    setTimeout(() => { setExpression('idle'); }, 2500);
+    exprLabel.textContent = name;
+    exprLabel.style.color = '#3a9e6f';
+    setTimeout(() => { setExpression('idle'); }, 2000);
   });
 });
 
-/* ── Health Check ── */
+/* ── Health & Governance ── */
 async function checkHealth() {
   try {
     const res = await fetch('/api/status');
-    if (res.ok) setOnline(true);
-    else setOnline(false);
-  } catch {
-    setOnline(false);
-  }
+    if (!res.ok) { setOnline(false); return; }
+    setOnline(true);
+    if (govVisible) {
+      const d = await res.json();
+      govModel.textContent = d.defaultModel || 'hy3';
+      govBudget.textContent = d.k3Budget ? `$${d.k3Budget.spentTodayUsd.toFixed(3)}/$1.00` : '—';
+      govTasks.textContent = '—';
+      govTools.textContent = '—';
+      govTokens.textContent = '—';
+    }
+  } catch { setOnline(false); }
 }
+
+/* ── Daemon WebSocket ── */
+function connectDaemonWS() {
+  try {
+    const ws = new WebSocket('ws://127.0.0.1:8766');
+    ws.onmessage = (e) => {
+      try {
+        const s = JSON.parse(e.data);
+        statusText.textContent = s.status === 'running_task' ? 'researching' : 'governed';
+        if (govVisible) {
+          govTasks.innerHTML = `${s.tasks_completed_today ?? '?'}/${s.daily_task_limit ?? '?'}`;
+          govTools.innerHTML = `${s.tool_calls_used_today ?? '?'}/${s.daily_tool_call_limit ?? '?'}`;
+          govTokens.innerHTML = `${((s.tokens_used_today ?? 0) / 1000).toFixed(1)}k/${((s.daily_token_limit ?? 0) / 1000).toFixed(0)}k`;
+          govAudit.textContent = s.audit_chain_valid ? '✓' : '⚠';
+          govAudit.className = `val ${s.audit_chain_valid ? 'green' : 'red'}`;
+        }
+        if (s.status === 'running_task' && s.current_task) {
+          appendMsg('s', `Daemon researching: ${s.current_task.slice(0, 80)}…`);
+          setExpression('thinking');
+          exprLabel.textContent = 'researching';
+        }
+      } catch { /* */ }
+    };
+    ws.onclose = () => setTimeout(connectDaemonWS, 5000);
+  } catch { setTimeout(connectDaemonWS, 5000); }
+}
+
 checkHealth();
 setInterval(checkHealth, 15000);
+connectDaemonWS();
 
-/* ── Mouse Tracking (eyes follow) ── */
+/* ── Mouse Tracking ── */
 document.addEventListener('mousemove', (e) => {
-  const x = (e.clientX / window.innerWidth - 0.5) * 0.04;
-  const y = (e.clientY / window.innerHeight - 0.5) * 0.02;
-  leftEye.children[1].position.x = 0.06 + x;
-  leftEye.children[1].position.y = y;
-  leftEye.children[2].position.x = 0.08 + x * 1.5;
-  leftEye.children[2].position.y = y * 1.5;
-  rightEye.children[1].position.x = 0.06 + x;
-  rightEye.children[1].position.y = y;
-  rightEye.children[2].position.x = 0.08 + x * 1.5;
-  rightEye.children[2].position.y = y * 1.5;
+  const x = (e.clientX / window.innerWidth - 0.5) * 0.035;
+  const y = (e.clientY / window.innerHeight - 0.5) * 0.015;
+  [lEye, rEye].forEach((eye, i) => {
+    const sign = i === 0 ? 1 : 1;
+    eye.children[1].position.x = 0.05 + x * sign;
+    eye.children[1].position.y = y;
+    eye.children[2].position.x = 0.07 + x * 1.3 * sign;
+    eye.children[2].position.y = y * 1.3;
+  });
 });
 
-/* ── Daemon WebSocket (optional) ── */
-try {
-  const ws = new WebSocket('ws://127.0.0.1:8766');
-  ws.onmessage = (e) => {
-    try {
-      const state = JSON.parse(e.data);
-      const daemonStatus = state.status;
-      if (daemonStatus === 'running_task') {
-        appendMessage('system', `Zora is researching: ${state.current_task || 'thinking…'}`);
-        setExpression('thinking');
-        expressionLabel.textContent = 'researching';
-      } else if (daemonStatus === 'sleeping') {
-        statusText.textContent = `daemon resting · ${state.tasks_completed_today}/${state.daily_task_limit} tasks today`;
-      }
-    } catch { /* ignore malformed */ }
-  };
-} catch { /* WebSocket optional */ }
+/* ── Auto-clear expression label ── */
+setTimeout(() => { exprLabel.style.transition = 'opacity 2s'; }, 5000);

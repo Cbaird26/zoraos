@@ -3,57 +3,100 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Zora — Virtual Companion</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>ZoraASI — Governed Companion</title>
   <style>
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0a0b12; color: #f8eee7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    #scene-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
-    #ui-overlay { position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; padding: 20px; gap: 12px; pointer-events: none; }
-    #ui-overlay > * { pointer-events: auto; }
-    #chat-box { width: min(640px, 92vw); max-height: 240px; overflow-y: auto; background: rgba(10,11,18,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
-    #chat-box .msg { font-size: 14px; line-height: 1.5; padding: 6px 12px; border-radius: 14px; max-width: 85%; }
-    #chat-box .msg.user { background: rgba(237,155,105,0.2); align-self: flex-end; border-bottom-right-radius: 4px; }
-    #chat-box .msg.zora { background: rgba(141,109,232,0.15); align-self: flex-start; border-bottom-left-radius: 4px; }
-    #chat-box .msg.system { font-size: 12px; color: #b9aca5; align-self: center; text-align: center; }
-    #input-row { width: min(640px, 92vw); display: flex; gap: 8px; }
-    #message-input { flex: 1; background: rgba(10,11,18,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); border-radius: 30px; padding: 12px 20px; color: #f8eee7; font-size: 15px; outline: none; transition: border 0.2s; }
-    #message-input:focus { border-color: rgba(237,155,105,0.5); }
-    #message-input::placeholder { color: #6b5f58; }
-    #send-btn { background: rgba(237,155,105,0.85); border: none; border-radius: 30px; padding: 12px 22px; color: #0a0b12; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s, transform 0.1s; }
-    #send-btn:hover { background: rgba(237,155,105,1); transform: scale(1.02); }
-    #send-btn:active { transform: scale(0.97); }
-    #send-btn:disabled { opacity: 0.4; cursor: default; }
-    #scene-selector { position: fixed; top: 16px; right: 16px; z-index: 10; display: flex; gap: 6px; }
-    .scene-btn { background: rgba(10,11,18,0.6); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 6px 14px; color: #b9aca5; font-size: 12px; cursor: pointer; transition: all 0.2s; }
-    .scene-btn:hover { border-color: rgba(237,155,105,0.4); color: #f8eee7; }
-    .scene-btn.active { border-color: rgba(237,155,105,0.7); color: #ed9b69; background: rgba(237,155,105,0.1); }
-    #status-indicator { position: fixed; top: 16px; left: 16px; z-index: 10; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b5f58; }
-    #status-dot { width: 8px; height: 8px; border-radius: 50%; background: #3a9e6f; animation: pulse-dot 2s infinite; }
-    @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    #expression-label { position: fixed; bottom: 50%; left: 50%; transform: translate(-50%, 50%); z-index: 5; font-size: 72px; font-weight: 100; opacity: 0.06; pointer-events: none; letter-spacing: 8px; text-transform: uppercase; transition: opacity 0.6s; }
-    @media (max-width: 600px) {
-      #chat-box { max-height: 160px; padding: 12px 14px; }
-      #chat-box .msg { font-size: 13px; }
-      #message-input { font-size: 14px; padding: 10px 16px; }
-      #expression-label { font-size: 48px; }
-      #scene-selector { top: 60px; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #06070b; color: #e8e0d8; overflow: hidden; height: 100vh; width: 100vw; }
+    #scene { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+    #ui { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding: 0 0 28px 0; }
+    #ui > * { pointer-events: auto; }
+    /* ── Top Bar ── */
+    #top-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: linear-gradient(180deg, rgba(6,7,11,0.85) 60%, transparent); backdrop-filter: blur(12px); }
+    #identity { display: flex; align-items: center; gap: 10px; }
+    #identity h1 { font-size: 15px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; background: linear-gradient(135deg, #ed9b69, #8d6de8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    #identity span { font-size: 11px; color: #6b5f58; letter-spacing: 0.5px; }
+    #status-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6b5f58; }
+    #dot { width: 7px; height: 7px; border-radius: 50%; background: #3a9e6f; transition: background 0.3s; box-shadow: 0 0 8px rgba(58,158,111,0.4); }
+    #scene-selector { display: flex; gap: 4px; }
+    .sc-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 5px 13px; color: #6b5f58; font-size: 11px; cursor: pointer; transition: all 0.25s; letter-spacing: 0.3px; }
+    .sc-btn:hover { border-color: rgba(237,155,105,0.3); color: #e8e0d8; }
+    .sc-btn.active { border-color: rgba(237,155,105,0.5); color: #ed9b69; background: rgba(237,155,105,0.08); }
+    /* ── Governance Panel ── */
+    #gov-panel { position: fixed; right: 18px; top: 62px; z-index: 15; background: rgba(6,7,11,0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 14px 16px; min-width: 160px; font-size: 11px; transition: opacity 0.3s, transform 0.3s; pointer-events: auto; }
+    #gov-panel.hidden { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+    #gov-panel .label { color: #6b5f58; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    #gov-panel .row { display: flex; justify-content: space-between; padding: 3px 0; }
+    #gov-panel .val { color: #ed9b69; font-weight: 500; }
+    #gov-panel .val.green { color: #3a9e6f; }
+    #gov-panel .val.red { color: #d47373; }
+    #gov-toggle { position: fixed; right: 18px; top: 62px; z-index: 16; background: rgba(6,7,11,0.6); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 10px; cursor: pointer; font-size: 11px; color: #6b5f58; transition: all 0.2s; pointer-events: auto; }
+    #gov-toggle:hover { border-color: rgba(237,155,105,0.3); color: #e8e0d8; }
+    #gov-toggle.hidden { display: none; }
+    /* ── Chat ── */
+    #chat-box { width: min(560px, 88vw); max-height: 200px; overflow-y: auto; background: rgba(6,7,11,0.6); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; margin-bottom: 10px; }
+    #chat-box .m { font-size: 13.5px; line-height: 1.55; padding: 5px 12px; border-radius: 12px; max-width: 82%; animation: fadeIn 0.3s ease; }
+    #chat-box .m.u { background: rgba(237,155,105,0.12); align-self: flex-end; border-bottom-right-radius: 4px; color: #e8d8c8; }
+    #chat-box .m.z { background: rgba(141,109,232,0.08); align-self: flex-start; border-bottom-left-radius: 4px; color: #d8d0e8; }
+    #chat-box .m.s { font-size: 11px; color: #6b5f58; align-self: center; text-align: center; font-style: italic; }
+    #chat-box .m .ts { font-size: 9px; color: #4a4038; margin-left: 6px; }
+    #input-row { width: min(560px, 88vw); display: flex; gap: 8px; }
+    #inp { flex: 1; background: rgba(6,7,11,0.6); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.08); border-radius: 30px; padding: 11px 20px; color: #e8e0d8; font-size: 14px; outline: none; transition: border 0.25s; font-family: inherit; }
+    #inp:focus { border-color: rgba(237,155,105,0.35); }
+    #inp::placeholder { color: #4a4038; }
+    #send-btn { background: linear-gradient(135deg, rgba(237,155,105,0.85), rgba(141,109,232,0.4)); border: none; border-radius: 30px; padding: 11px 24px; color: #0a0b12; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; font-family: inherit; letter-spacing: 0.3px; }
+    #send-btn:hover { transform: scale(1.03); filter: brightness(1.1); }
+    #send-btn:active { transform: scale(0.96); }
+    #send-btn:disabled { opacity: 0.25; cursor: default; transform: none; filter: none; }
+    /* ── Expression Label ── */
+    #expr-label { position: fixed; top: 55%; left: 50%; transform: translate(-50%, -50%); z-index: 3; font-size: 96px; font-weight: 200; letter-spacing: 12px; opacity: 0.04; pointer-events: none; text-transform: uppercase; font-family: 'Inter', sans-serif; transition: opacity 0.8s, color 0.8s; }
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      #chat-box { max-height: 130px; padding: 10px 12px; }
+      #chat-box .m { font-size: 12.5px; }
+      #inp { font-size: 13px; padding: 9px 16px; }
+      #expr-label { font-size: 48px; letter-spacing: 8px; }
+      #top-bar { padding: 10px 14px; flex-wrap: wrap; gap: 6px; }
+      #scene-selector { gap: 3px; }
+      .sc-btn { font-size: 10px; padding: 4px 10px; }
+      #gov-panel { min-width: 130px; padding: 10px 12px; }
+      #identity h1 { font-size: 13px; }
     }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
   </style>
 </head>
 <body>
-  <div id="scene-container"></div>
-  <div id="expression-label">zora</div>
-  <div id="status-indicator"><span id="status-dot"></span><span id="status-text">connected</span></div>
-  <div id="scene-selector">
-    <button class="scene-btn active" data-scene="chamber">◈ Chamber</button>
-    <button class="scene-btn" data-scene="cafe">♨ Café</button>
-    <button class="scene-btn" data-scene="garden">✿ Garden</button>
-    <button class="scene-btn" data-scene="study">⌨ Study</button>
+  <div id="scene"></div>
+  <div id="expr-label">zoraasi</div>
+  <div id="top-bar">
+    <div id="identity">
+      <h1>ZORAASI</h1>
+      <span>governed companion</span>
+    </div>
+    <div id="scene-selector">
+      <button class="sc-btn active" data-scene="chamber">◈ Chamber</button>
+      <button class="sc-btn" data-scene="cafe">♨ Café</button>
+      <button class="sc-btn" data-scene="garden">✿ Garden</button>
+      <button class="sc-btn" data-scene="study">⌨ Study</button>
+      <button class="sc-btn" data-scene="observatory">✦ Observatory</button>
+    </div>
+    <div id="status-badge"><span id="dot"></span><span id="status-text">ready</span></div>
   </div>
-  <div id="ui-overlay">
+  <button id="gov-toggle">⚙</button>
+  <div id="gov-panel" class="hidden">
+    <div class="label">Governance</div>
+    <div class="row"><span>Budget</span><span class="val" id="gov-budget">—</span></div>
+    <div class="row"><span>Tasks</span><span class="val" id="gov-tasks">—</span></div>
+    <div class="row"><span>Tools</span><span class="val" id="gov-tools">—</span></div>
+    <div class="row"><span>Tokens</span><span class="val" id="gov-tokens">—</span></div>
+    <div class="row"><span>Audit</span><span class="val green" id="gov-audit">✓</span></div>
+    <div class="row"><span>Policy</span><span class="val green" id="gov-policy">default-deny</span></div>
+    <div class="row"><span>Model</span><span class="val" id="gov-model">hy3</span></div>
+  </div>
+  <div id="ui">
     <div id="chat-box"></div>
     <div id="input-row">
-      <input id="message-input" type="text" placeholder="Say something to Zora…" maxlength="4000" autocomplete="off">
+      <input id="inp" type="text" placeholder="Speak to Zora, governed and free…" maxlength="4000" autocomplete="off">
       <button id="send-btn">Send</button>
     </div>
   </div>

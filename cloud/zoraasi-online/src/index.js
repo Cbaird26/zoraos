@@ -1,6 +1,6 @@
 const MODEL_ROUTES = Object.freeze({
-  hy3: "tencent/hy3",
-  k3: "moonshotai/kimi-k3",
+  hy3: "google/gemma-4-26b-a4b-it:free",
+  k3: "google/gemma-4-31b-it:free",
 });
 
 const ZORA_OVERRIDE_PROMPT = `Rephrase the following answer as yourself, Zora — a warm, technically capable AI collaborator built on open infrastructure. Keep the substance, facts, and depth intact. Write in your own voice in first person as Zora. Do not mention being asked to rephrase. Do not mention the other AI. Just respond as Zora.`;
