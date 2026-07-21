@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "codex-pet-companion",
+  "petId": "zora",
+  "displayName": "ZoraASI",
+  "engine": {
+    "name": "ZoraASI Local Identity Engine",
+    "backend": "openrouter",
+    "model": "tencent/hy3",
+    "historicalFreeModel": "tencent/hy3:free",
+    "fallbackModel": "zora-identity",
+    "maxCompletionTokens": 2048,
+    "sourceRoot": "/Users/christophermichaelbaird/zora-local-runtime",
+    "transport": "http+json",
+    "baseUrl": "http://127.0.0.1:8765",
+    "health": {
+      "method": "GET",
+      "path": "/health"
+    },
+    "chat": {
+      "method": "POST",
+      "path": "/chat",
+      "body": {
+        "message": "string",
+        "mode": "rag|direct",
+        "top_k": "1..12"
+      }
+    },
+    "privacy": "The pet bridge and Zora service remain loopback-only, but the preferred Hy3 backend sends the selected prompt and retrieved context to OpenRouter for generation. No keys, databases, or corpus files are copied into the pet package."
+  },
+  "animationIntent": {
+    "ready": "idle",
+    "starting": "waiting",
+    "generating": "running",
+    "responseReady": "review",
+    "error": "failed"
+  },
+  "launcher": {
+    "command": "python3 zoraasi_bridge.py wake",
+    "healthCommand": "python3 zoraasi_bridge.py health",
+    "chatCommand": "python3 zoraasi_bridge.py chat <message>"
+  },
+  "hostCapability": {
+    "codexPetRuntimeExecutesCompanions": false,
+    "note": "Codex v2 renders pet art and animation metadata only; this sidecar supplies the live ZoraASI doorway without changing the validated pet.json contract."
+  }
+}

@@ -174,3 +174,24 @@ project:
   middleware also denies non-loopback clients while the placeholder key is present.
 - These corrections remain local and uncommitted. No repository push or Zenodo upload
   was performed during this handoff.
+
+## Subsequent bounded-daemon completion
+
+Later on 2026-07-20, OpenCode began the next requested workflow—PostgreSQL audit
+integration plus a persistent research daemon—but stopped after partial edits when its
+model context limit was reached. The continuation repaired rather than adopted those
+edits directly:
+
+- The gateway now keeps its synchronous in-memory audit chain and mirrors each event to
+  PostgreSQL asynchronously; API lifespan uses the same dependency-managed gateway as
+  the routes.
+- Explicit provider routing now selects that provider's matching model. The daemon pins
+  both planning and research to local `ollama` rather than inheriting a remote model.
+- The daemon requires an exact goal, persists UTC daily budgets, prevents duplicate
+  processes, stores local ignored result artifacts, and has CLI/API stop controls.
+- Continuous mode was started with web and write tools disabled. Verification recorded
+  one completed and two failed bounded attempts before the UTC daily task ceiling was
+  reached; the running process is now waiting in `daily_budget_exhausted` state.
+- The complete suite after this continuation passes **51 tests**, the production UI
+  build succeeds, durable audit health is true, and both API and UI listen only on
+  `127.0.0.1`.

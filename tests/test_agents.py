@@ -26,6 +26,16 @@ class CapturingModelManager:
         )
 
 
+class HighUsageFinalModelManager:
+    async def chat(self, **kwargs):
+        return ModelResponse(
+            content="A complete bounded response.",
+            model="local-model",
+            provider="ollama",
+            usage={"total_tokens": 900},
+        )
+
+
 class TestResearchAgent:
     @pytest.mark.asyncio
     async def test_run_without_model(self):
@@ -58,6 +68,17 @@ class TestResearchAgent:
         assert manager.request["max_tokens"] == 123
         assert agent.config.provider is None
         assert agent.config.model is None
+
+    @pytest.mark.asyncio
+    async def test_final_response_is_kept_when_usage_reaches_budget(self):
+        agent = ResearchAgent()
+        agent.model_manager = HighUsageFinalModelManager()
+
+        result = await agent.run("Answer locally", max_tokens=256)
+
+        assert result.success
+        assert result.output["response"] == "A complete bounded response."
+        assert result.tokens_used == 900
 
 
 class TestDeveloperAgent:

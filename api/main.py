@@ -11,6 +11,7 @@ from starlette.requests import Request
 
 from configs.settings import settings
 
+from .dependencies import get_gateway
 from .routes import agents, chat, health, memory, system, tools
 from .security import authorize_api_request
 
@@ -22,7 +23,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(f"ZoraOS v0.1.0 starting in {settings.environment} mode")
     logger.info(f"Default provider: {settings.default_provider}, model: {settings.default_model}")
     logger.info(f"Data directory: {settings.data_path}")
-    yield
+
+    gateway = get_gateway()
+    await gateway.startup()
+    app.state.gateway = gateway
+    logger.info("Gateway initialized with %s audit", (await gateway.health())["audit_backend"])
+    try:
+        yield
+    finally:
+        await gateway.shutdown()
     logger.info("ZoraOS shutting down")
 
 

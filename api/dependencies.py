@@ -130,6 +130,8 @@ def get_router() -> RouterEngine:
 
 @lru_cache
 def get_gateway() -> GatewayService:
+    from configs.settings import settings
+
     register_builtin_agents()
     model_manager = get_model_manager()
     tool_registry = get_tool_registry()
@@ -145,4 +147,5 @@ def get_gateway() -> GatewayService:
         planner=planner,
         router=get_router(),
         audit_ledger=audit_ledger,
+        database_url=settings.database_url,
     )

@@ -107,6 +107,10 @@ class Agent(ABC):
         while iterations < max_iterations:
             iterations += 1
 
+            remaining_tokens = None
+            if max_tokens is not None:
+                remaining_tokens = max(64, int(max_tokens) - tokens_used)
+
             openai_tools = None
             if self.tool_manager and self.config.tools:
                 openai_tools = self.tool_manager.get_tools_for_agent(self.config.tools)
@@ -116,19 +120,17 @@ class Agent(ABC):
                 tools=openai_tools,
                 model=model,
                 provider=provider,
-                max_tokens=max_tokens,
+                max_tokens=remaining_tokens,
             )
             last_response = response
 
             if response.usage:
                 tokens_used += response.usage.get("total_tokens", 0)
-                if max_tokens is not None and tokens_used >= int(max_tokens):
-                    termination_error = (
-                        "Agent reached token budget before producing a final response"
-                    )
-                    break
 
             if response.tool_calls:
+                if max_tokens is not None and tokens_used >= int(max_tokens):
+                    termination_error = "Agent reached token budget before another tool round"
+                    break
                 assistant_msg: dict[str, Any] = {
                     "role": "assistant",
                     "content": response.content or "",

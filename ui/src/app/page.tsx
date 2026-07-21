@@ -45,6 +45,19 @@ interface SystemStatus {
   plans: number;
   tasks: number;
   audit_chain_valid: boolean;
+  audit_backend?: string;
+  durable_audit_connected?: boolean;
+  daemon?: {
+    status: string;
+    running: boolean;
+    continuous: boolean;
+    provider?: string;
+    tasks_started_today: number;
+    daily_task_limit: number;
+    tokens_used_today: number;
+    daily_token_limit: number;
+    heartbeat_age_seconds?: number;
+  };
 }
 
 type NodeKind = "question" | "evidence" | "challenge" | "synthesis" | "control";
@@ -499,6 +512,18 @@ export default function Observatory() {
                 ))}
                 {!status && <span className="quiet">Unavailable</span>}
               </div>
+            </div>
+
+            <div className="daemon-row">
+              <div>
+                <span className={`status-dot ${status?.daemon?.running ? "is-online" : "is-offline"}`} />
+                <span>Research daemon</span>
+              </div>
+              <strong>{status?.daemon?.running ? status.daemon.status.replaceAll("_", " ") : "stopped"}</strong>
+              <small>
+                {status?.daemon?.tasks_started_today ?? 0}/{status?.daemon?.daily_task_limit ?? 0} tasks ·{" "}
+                {(status?.daemon?.tokens_used_today ?? 0).toLocaleString()}/{(status?.daemon?.daily_token_limit ?? 0).toLocaleString()} tokens
+              </small>
             </div>
 
             <div className="capability-list">

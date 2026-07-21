@@ -32,6 +32,9 @@ docker compose up -d
 
 # Or start manually
 bash scripts/start.sh
+
+# In another terminal, start the loopback-only Observatory
+cd ui && npm run dev
 ```
 
 ## Core Components
@@ -42,8 +45,9 @@ bash scripts/start.sh
 - **Agents** — Research, Developer, Writer, Knowledge
 - **Tools** — Filesystem, Git, Web Search, Python, PDF
 - **Memory** — Vector store, knowledge graph, document store
-- **Scheduler** — Background automation, recurring workflows
-- **UI** — React dashboard for monitoring and control
+- **Scheduler** — Proposed cron-workflow scaffold (not an executor)
+- **Research daemon** — Operator-started, local-only bounded research cycles
+- **UI** — Observatory dashboard for plans, budgets, governance, and live state
 
 ## Model Support
 
@@ -71,8 +75,12 @@ mypy .
 ZoraOS is a governed automation prototype, not evidence of consciousness, AGI/ASI, or
 safe unattended autonomy. Unknown tools are denied by default, live third-party desktop
 control is disabled, and the API is local-only while the gateway key remains a
-placeholder. The background runner and scheduler are scaffolds; continuous research is
-not enabled by default.
+placeholder. The cron scheduler remains a scaffold. A separate research daemon is
+implemented but never starts with the API: the operator must provide an exact goal and
+explicitly request continuous mode. Its defaults use local Ollama, approve only local
+read tools, cap daily tasks/tool calls/tokens, persist state and result artifacts under
+ignored `data/daemon/`, and expose a stop file/API endpoint. See
+[`docs/DAEMON.md`](docs/DAEMON.md).
 
 The reviewed transfer record from the 2026-07-20 OpenCode session is in
 [`docs/OPENCODE_HANDOFF_2026-07-20.md`](docs/OPENCODE_HANDOFF_2026-07-20.md).

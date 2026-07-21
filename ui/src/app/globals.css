@@ -841,6 +841,38 @@ input:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 
+.daemon-row {
+  display: grid;
+  gap: 6px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.daemon-row > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.daemon-row .status-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.daemon-row strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.daemon-row small {
+  color: var(--text-dim);
+  font-size: 9px;
+}
+
 .provider-row > div {
   display: flex;
   gap: 6px;

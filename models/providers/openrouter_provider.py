@@ -20,7 +20,7 @@ class OpenRouterProvider(ModelProvider):
         super().__init__(config)
         self.api_key = config.get("api_key")
         self.api_base = config.get("api_base", "https://openrouter.ai/api/v1")
-        self.default_model = config.get("model", "tencent/hy3:free")
+        self.default_model = config.get("model", "tencent/hy3")
         self.capabilities = ProviderCapabilities(
             streaming=True,
             tool_calling=True,
@@ -62,6 +62,8 @@ class OpenRouterProvider(ModelProvider):
             "max_tokens": request.max_tokens or 4096,
             "stream": False,
         }
+        if model == "tencent/hy3":
+            body["reasoning"] = {"effort": "low", "exclude": True}
         if request.tools:
             body["tools"] = request.tools
         if request.tool_choice:
@@ -110,6 +112,8 @@ class OpenRouterProvider(ModelProvider):
             "max_tokens": request.max_tokens or 4096,
             "stream": True,
         }
+        if model == "tencent/hy3":
+            body["reasoning"] = {"effort": "low", "exclude": True}
         if request.tools:
             body["tools"] = request.tools
 

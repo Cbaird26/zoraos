@@ -30,6 +30,10 @@ class TestRouterEngine:
         decision = await router.route("Write a paper on quantum mechanics", ["anthropic", "ollama"])
         assert decision.provider == "anthropic"
 
+    def test_model_for_explicit_local_provider(self):
+        router = RouterEngine()
+        assert router.model_for_provider("ollama") == "zora:core"
+
     def test_update_task_map(self):
         router = RouterEngine()
         router.update_task_map("research", "kimi")

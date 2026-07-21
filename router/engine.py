@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from configs.settings import settings
 
@@ -10,13 +10,13 @@ from configs.settings import settings
 class RouteDecision:
     provider: str
     model: str
-    tools: List[str]
+    tools: list[str]
     estimated_cost: float = 0.0
     reasoning: str = ""
 
 
 class RouterEngine:
-    _task_provider_map: Dict[str, str] = {
+    _task_provider_map: dict[str, str] = {
         "research": "deepseek",
         "coding": "kimi",
         "write": "anthropic",
@@ -26,18 +26,19 @@ class RouterEngine:
         "local": "ollama",
     }
 
-    def _model_for_provider(self, provider: str) -> str:
-        if provider == "ollama":
-            return settings.default_model
+    def model_for_provider(self, provider: str) -> str:
         return {
-            "deepseek": "deepseek-chat",
-            "kimi": "kimi-k2",
-            "anthropic": "claude-sonnet-4-20250514",
-            "openai": "gpt-4o",
+            "ollama": settings.providers.ollama.model,
+            "deepseek": settings.providers.deepseek.model,
+            "kimi": settings.providers.kimi.model,
+            "anthropic": settings.providers.anthropic.model,
+            "openai": settings.providers.openai.model,
             "openrouter": settings.providers.openrouter.model,
         }.get(provider, settings.default_model)
 
-    async def route(self, goal: str, available_providers: List[str], **kwargs: Any) -> RouteDecision:
+    async def route(
+        self, goal: str, available_providers: list[str], **kwargs: Any
+    ) -> RouteDecision:
         goal_lower = goal.lower()
         provider = settings.default_provider
         if available_providers and provider not in available_providers:
@@ -48,7 +49,7 @@ class RouterEngine:
                 provider = prov
                 break
 
-        model = self._model_for_provider(provider)
+        model = self.model_for_provider(provider)
 
         return RouteDecision(
             provider=provider,

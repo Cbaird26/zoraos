@@ -32,12 +32,16 @@ Do not open public issues containing secrets, exploits, personal data, or reprod
 
 The prototype includes bounded agent iterations, optional token budgets, tool-call
 budgets, task cancellation flags, explicit per-task approval for classified side-effect
-tools, default denial of unknown tools, a basic local kill-switch convention, and an
-in-memory SHA-256 hash-chained audit ledger. The API permits unauthenticated development
-access only from loopback while the gateway key is a placeholder; a configured key is
-required for every protected API request.
+tools, default denial of unknown tools, a local kill-switch convention, wall-clock task
+timeouts, and an in-memory SHA-256 hash chain mirrored asynchronously to PostgreSQL.
+The API permits unauthenticated development access only from loopback while the gateway
+key is a placeholder; a configured key is required for every protected API request.
+Both API and UI startup commands bind to `127.0.0.1`.
 
-The PostgreSQL audit implementation is experimental and is not yet the gateway's active
-ledger. The system does not yet provide a complete permission broker, durable task
-state, a universal confirmation gate, reliable wall-clock cancellation, or production
-authentication/authorization. These are open requirements, not completed guarantees.
+The PostgreSQL ledger is an active durable mirror, while the in-memory chain remains the
+runtime source for synchronous enforcement and fallback. The operator-started daemon
+uses Ollama, has durable daily task/tool/token ceilings, grants no write or desktop
+tools, and keeps web search off unless explicitly enabled. It does not make the system
+safe for unsupervised external action. The system still lacks a complete permission
+broker, durable resumable task state, a universal confirmation gate, process-level hard
+termination of every provider, and production authentication/authorization.

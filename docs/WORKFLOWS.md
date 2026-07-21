@@ -1,9 +1,10 @@
 # ZoraOS Workflows
 
-These are proposed workflow specifications. The current scheduler is a scaffold and
-does not execute cron expressions, fetch these sources, or run continuous research.
-Each workflow requires explicit source authorization, retention rules, budgets, and a
-reviewed output destination before activation.
+These are proposed workflow specifications. The cron scheduler is still a scaffold and
+does not execute these definitions. The separate `scripts/zora_daemon.py` can perform
+one exact operator-supplied research question once or at a bounded interval; it does not
+activate any workflow below automatically. Each proposed workflow still requires source
+authorization, retention rules, budgets, and a reviewed output destination.
 
 ## Morning Briefing
 

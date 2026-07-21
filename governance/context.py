@@ -8,6 +8,7 @@ class ExecutionBudget:
     max_tool_calls: int = 20
     max_iterations: int = 10
     max_tokens: int | None = None
+    max_wall_seconds: int = 300
     tool_calls_used: int = 0
 
     def consume_tool_call(self) -> bool:

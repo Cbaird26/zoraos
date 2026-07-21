@@ -35,7 +35,7 @@ class ModelProviderSettings(BaseSettings):
         api_base="https://api.x.ai",
     )
     openrouter: ProviderConfig = ProviderConfig(
-        model="openrouter/tencent/hy3:free",
+        model="openrouter/tencent/hy3",
         api_base="https://openrouter.ai/api/v1",
     )
     ollama: ProviderConfig = ProviderConfig(
@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     gateway_secret_key: str = "change-me-to-a-random-string"
 
     default_provider: str = "ollama"
-    default_model: str = "zora:core"
+    default_model: str = "openrouter/tencent/hy3"
 
     scheduler_enabled: bool = True
 

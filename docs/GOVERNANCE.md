@@ -27,22 +27,25 @@ ZoraASI is the governed operating profile for ZoraOS. It describes a system that
 
 ## Implemented Prototype Controls
 
-- Per-task tool-call, iteration, and optional token budgets.
+- Per-task tool-call, iteration, token, and wall-clock budgets.
 - Explicit per-task approvals for local-write and external tools.
 - Default denial of tools that are not explicitly classified.
-- An in-memory SHA-256 hash-chained audit ledger for task and tool events.
+- An in-memory SHA-256 hash-chained ledger mirrored asynchronously to PostgreSQL, with
+  health reporting and local fallback.
 - Cancellation requests that prevent subsequent tool invocations.
 - Denial of third-party desktop-control tools; dedicated-sandbox authorization is not
   yet implemented in the gateway.
 - Loopback-only protected API access when the gateway key is a placeholder, and
   `X-ZoraOS-Key` authentication when a real key is configured.
+- An operator-started local research daemon with an exact required goal, persistent UTC
+  daily budgets, duplicate-process prevention, heartbeat/status files, local result
+  artifacts, and a stop signal. Its default tool set is read-only and web access is off.
 
 ## Required Future Controls
 
-- Integrate and test the experimental PostgreSQL action ledger, including export and
-  retention controls.
+- Add export, retention, recovery, and load testing for the PostgreSQL audit mirror.
 - A permission broker with capability scopes, actor identity, and expirations.
-- Financial and wall-clock budget enforcement.
+- Provider-aware financial budgets and process-level hard termination.
 - A user-visible pause and termination interface.
 - Confirmation gates for external or irreversible actions.
 - Regression tests for policy refusal and kill-switch behavior.
