@@ -576,6 +576,7 @@ const statusText = document.getElementById('status-text');
 const exprLabel = document.getElementById('expr-label');
 const govPanel = document.getElementById('gov-panel');
 const govToggle = document.getElementById('gov-toggle');
+const modelSelect = document.getElementById('model-select');
 
 // Governance panel references
 const govBudget = document.getElementById('gov-budget');
@@ -591,6 +592,10 @@ govToggle.addEventListener('click', () => {
   govVisible = !govVisible;
   govPanel.classList.toggle('hidden', !govVisible);
   govToggle.classList.toggle('hidden', govVisible);
+});
+
+modelSelect.addEventListener('change', () => {
+  if (govVisible) checkHealth();
 });
 
 function appendMsg(role, text) {
@@ -624,7 +629,7 @@ async function sendMessage(text) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, model: 'hy3' }),
+      body: JSON.stringify({ message: text, model: document.getElementById('model-select').value }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Request failed');
@@ -672,11 +677,15 @@ async function checkHealth() {
     setOnline(true);
     if (govVisible) {
       const d = await res.json();
-      govModel.textContent = d.defaultModel || 'hy3';
-      govBudget.textContent = d.k3Budget ? `$${d.k3Budget.spentTodayUsd.toFixed(3)}/$1.00` : '—';
-      govTasks.textContent = '—';
-      govTools.textContent = '—';
-      govTokens.textContent = '—';
+      const curModel = document.getElementById('model-select').value;
+      const modelMeta = d.modelMeta?.[curModel] || {};
+      govModel.textContent = modelMeta.label || curModel;
+      const budget = d.budget?.[curModel];
+      if (budget) {
+        govBudget.textContent = `$${budget.spentTodayUsd.toFixed(3)}/$${budget.dailyCapUsd.toFixed(2)}`;
+      } else {
+        govBudget.textContent = 'free';
+      }
     }
   } catch { setOnline(false); }
 }

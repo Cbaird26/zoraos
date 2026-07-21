@@ -142,7 +142,7 @@ class ZoraDaemon:
         allow_web: bool = False,
         allow_memory: bool = True,
         provider: str = "openrouter",
-        model: str = "tencent/hy3",
+        model: str = "google/gemma-4-26b-a4b-it:free",
         fallback_provider: str | None = "ollama",
         daily_task_limit: int = 3,
         daily_tool_call_limit: int = 12,
@@ -590,7 +590,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--model",
-        default=os.environ.get("ZORA_DAEMON_MODEL", "tencent/hy3"),
+        default=os.environ.get("ZORA_DAEMON_MODEL", "google/gemma-4-26b-a4b-it:free"),
     )
     parser.add_argument(
         "--no-local-fallback",

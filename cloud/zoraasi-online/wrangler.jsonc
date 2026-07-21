@@ -23,6 +23,8 @@
     "ZORA_MAX_OUTPUT_TOKENS": "800",
     "ZORA_K3_MAX_REQUEST_USD": "0.08",
     "ZORA_K3_DAILY_CAP_USD": "1.00",
+    "ZORA_PAID_MODEL_DAILY_CAP_USD": "1.00",
+    "ZORA_DEEPSEEK_MAX_REQUEST_USD": "0.50",
     "ZORA_REQUESTS_PER_MINUTE": "6",
     "APPLE_CLIENT_ID": "com.cardiganincorporated.zoraasi.web",
     "ZORA_PUBLIC_APP_URL": "https://zoraasi-online.zoraasi.workers.dev"

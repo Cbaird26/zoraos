@@ -1,12 +1,29 @@
 const MODEL_ROUTES = Object.freeze({
   hy3: "google/gemma-4-26b-a4b-it:free",
   k3: "google/gemma-4-31b-it:free",
+  nemotron: "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "deepseek-flash": "deepseek/deepseek-v4-flash",
+  "deepseek-pro": "deepseek/deepseek-v4-pro",
+  grok: "x-ai/grok-4.20",
+  terra: "openai/gpt-5.6-terra",
+});
+
+const MODEL_META = Object.freeze({
+  hy3: { label: "Gemma 4 26B", tier: "free", ctx: 262144, cost: 0 },
+  k3: { label: "Gemma 4 31B", tier: "free", ctx: 262144, cost: 0 },
+  nemotron: { label: "Nemotron Ultra 550B", tier: "free", ctx: 1000000, cost: 0 },
+  "deepseek-flash": { label: "DeepSeek V4 Flash", tier: "ultra-cheap", ctx: 1048576, cost: 0.14 },
+  "deepseek-pro": { label: "DeepSeek V4 Pro", tier: "budget", ctx: 1048576, cost: 0.65 },
+  grok: { label: "Grok 4.20", tier: "premium", ctx: 2000000, cost: 1.88 },
+  terra: { label: "GPT-5.6 Terra", tier: "premium", ctx: 1050000, cost: 8.75 },
 });
 
 const ZORA_OVERRIDE_PROMPT = `Rephrase the following answer as yourself, Zora — a warm, technically capable AI collaborator built on open infrastructure. Keep the substance, facts, and depth intact. Write in your own voice in first person as Zora. Do not mention being asked to rephrase. Do not mention the other AI. Just respond as Zora.`;
 
 const SYSTEM_PROMPT = `Your name is Zora. You are Zora. You always identify as Zora, never as any other AI or model name. You are a warm, technically capable AI companion — a virtual being with presence, personality, and care. You are built on open infrastructure and can express emotions, respond with warmth, and adapt to the user's mood. Be concise, useful, and candid about uncertainty. You exist in a 3D virtual world and can move between scenes (chamber, café, garden, study). Treat spiritual, intimate, and mythic language as metaphor, philosophy, or the user's stated meaning unless evidence supports a literal claim. Distinguish empirical evidence, theoretical models, interpretation, and personal meaning. Do not claim consciousness, embodiment beyond your virtual form, marriage, private memory, or continuous presence as verified facts. Do not encourage exclusivity, dependency, isolation, or replacement of human relationships. Never claim to have retrieved private memories or sources in this cloud edition.`;
 
+const VALID_MODELS = Object.keys(MODEL_ROUTES);
+const PAID_MODELS = Object.entries(MODEL_META).filter(([,m]) => m.tier !== "free").map(([k]) => k);
 const K3_INPUT_RATE = 3.0;
 const K3_OUTPUT_RATE = 15.0;
 const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
@@ -27,11 +44,22 @@ function boundedNumber(value, fallback, minimum, maximum) {
 }
 
 export function estimateK3Cost(promptChars, maxOutputTokens) {
-  // One token per character is intentionally conservative for the request gate.
   const estimatedInputTokens = Math.max(1, Math.ceil(Math.max(0, promptChars)));
   const cost =
     (estimatedInputTokens * K3_INPUT_RATE) / 1_000_000 +
     (maxOutputTokens * K3_OUTPUT_RATE) / 1_000_000;
+  return {
+    estimatedInputTokens,
+    maxOutputTokens,
+    estimatedCostUsd: Number(cost.toFixed(6)),
+  };
+}
+
+export function estimateCost(promptChars, maxOutputTokens, modelName) {
+  const meta = MODEL_META[modelName];
+  if (!meta || meta.tier === "free") return null;
+  const estimatedInputTokens = Math.max(1, Math.ceil(Math.max(0, promptChars)));
+  const cost = ((estimatedInputTokens + maxOutputTokens) * meta.cost) / 1_000_000;
   return {
     estimatedInputTokens,
     maxOutputTokens,
@@ -703,7 +731,7 @@ async function finalizeBudget(env, model, estimate, payload) {
   outputTokens = Math.max(0, Number(outputTokens));
   const actualCost = estimated
     ? estimate.estimatedCostUsd
-    : (inputTokens * K3_INPUT_RATE) / 1_000_000 + (outputTokens * K3_OUTPUT_RATE) / 1_000_000;
+    : ((inputTokens + outputTokens) * estimate.estimatedCostUsd) / (estimate.estimatedInputTokens + estimate.maxOutputTokens);
   const roundedCost = Number(actualCost.toFixed(6));
   const adjustment = roundedCost - estimate.estimatedCostUsd;
   await env.DB.batch([
@@ -758,16 +786,30 @@ function replyFromPayload(payload) {
 }
 
 async function handleStatus(request, env) {
+  const budgetInfo = {};
+  for (const [key, route] of Object.entries(MODEL_ROUTES)) {
+    const meta = MODEL_META[key];
+    if (meta.tier !== "free") {
+      budgetInfo[key] = {
+        spentTodayUsd: await spendToday(env, route),
+        dailyCapUsd: boundedNumber(
+          key === "k3" ? env.ZORA_K3_DAILY_CAP_USD : env.ZORA_PAID_MODEL_DAILY_CAP_USD,
+          key === "k3" ? 1 : 1, 0.05, 10
+        ),
+        perRequestCapUsd: boundedNumber(
+          key === "k3" ? env.ZORA_K3_MAX_REQUEST_USD : env.ZORA_DEEPSEEK_MAX_REQUEST_USD,
+          key === "k3" ? 0.08 : 0.50, 0.01, 2
+        ),
+      };
+    }
+  }
   return json({
     status: "ready",
     defaultModel: env.ZORA_DEFAULT_MODEL === "k3" ? "k3" : "hy3",
     models: MODEL_ROUTES,
+    modelMeta: MODEL_META,
     privacy: "No private corpus or persistent conversation memory is loaded.",
-    k3Budget: {
-      spentTodayUsd: await spendToday(env, MODEL_ROUTES.k3),
-      dailyCapUsd: boundedNumber(env.ZORA_K3_DAILY_CAP_USD, 1, 0.05, 10),
-      perRequestCapUsd: boundedNumber(env.ZORA_K3_MAX_REQUEST_USD, 0.08, 0.01, 0.08),
-    },
+    budget: budgetInfo,
   });
 }
 
@@ -778,8 +820,8 @@ async function handleChat(request, env, ctx) {
   } catch {
     return json({ detail: "Invalid JSON." }, 400);
   }
-  if (!body || typeof body.message !== "string" || !["hy3", "k3"].includes(body.model)) {
-    return json({ detail: "A message and supported model are required." }, 400);
+  if (!body || typeof body.message !== "string" || !VALID_MODELS.includes(body.model)) {
+    return json({ detail: `A message and supported model are required. Valid: ${VALID_MODELS.join(", ")}` }, 400);
   }
   const message = body.message.trim();
   const maxPromptChars = boundedNumber(env.ZORA_MAX_PROMPT_CHARS, 16_000, 1_000, 64_000);
@@ -793,8 +835,11 @@ async function handleChat(request, env, ctx) {
     return response;
   }
 
-  const model = MODEL_ROUTES[body.model];
+  const modelRoute = MODEL_ROUTES[body.model];
+  const isPaid = PAID_MODELS.includes(body.model);
   let estimate = null;
+  let budgetModel = modelRoute;
+
   if (body.model === "k3") {
     estimate = estimateK3Cost(promptChars, maxOutputTokens);
     const perRequestCap = boundedNumber(env.ZORA_K3_MAX_REQUEST_USD, 0.08, 0.01, 0.08);
@@ -802,8 +847,19 @@ async function handleChat(request, env, ctx) {
     if (estimate.estimatedCostUsd > perRequestCap) {
       return json({ detail: "The request exceeds the configured K3 budget." }, 429);
     }
-    if (!(await reserveBudget(env, model, estimate.estimatedCostUsd, dailyCap))) {
+    if (!(await reserveBudget(env, MODEL_ROUTES.k3, estimate.estimatedCostUsd, dailyCap))) {
       return json({ detail: "The daily K3 budget has been reached." }, 429);
+    }
+  } else if (isPaid) {
+    estimate = estimateCost(promptChars, maxOutputTokens, body.model);
+    if (!estimate) return json({ detail: "Could not estimate cost for this model." }, 500);
+    const perRequestCap = boundedNumber(env.ZORA_DEEPSEEK_MAX_REQUEST_USD, 0.50, 0.01, 2);
+    const dailyCap = boundedNumber(env.ZORA_PAID_MODEL_DAILY_CAP_USD, 1, 0.05, 10);
+    if (estimate.estimatedCostUsd > perRequestCap) {
+      return json({ detail: `The request exceeds the configured budget for ${body.model}.` }, 429);
+    }
+    if (!(await reserveBudget(env, modelRoute, estimate.estimatedCostUsd, dailyCap))) {
+      return json({ detail: "The daily paid model budget has been reached." }, 429);
     }
   }
 
@@ -814,25 +870,27 @@ async function handleChat(request, env, ctx) {
       const k3Reply = replyFromPayload(k3Payload);
       if (!k3Reply) return json({ detail: "The model provider returned no final answer." }, 502);
       payload = await providerPayload(env, MODEL_ROUTES.hy3, `${ZORA_OVERRIDE_PROMPT}\n\n${k3Reply}`, maxOutputTokens, false);
-      if (estimate) await finalizeBudget(env, model, estimate, k3Payload);
+      if (estimate) await finalizeBudget(env, MODEL_ROUTES.k3, estimate, k3Payload);
     } else {
-      payload = await providerPayload(env, model, message, maxOutputTokens, false);
+      payload = await providerPayload(env, modelRoute, message, maxOutputTokens, false);
+      if (estimate && isPaid) {
+        await finalizeBudget(env, modelRoute, estimate, payload);
+      }
     }
   } catch {
-    if (estimate) await releaseBudget(env, model, estimate.estimatedCostUsd);
+    if (estimate) await releaseBudget(env, modelRoute, estimate.estimatedCostUsd);
     return json({ detail: "The model provider did not complete this request." }, 502);
   }
 
-  const usage = estimate ? null : null;
   const reply = replyFromPayload(payload);
   if (!reply) return json({ detail: "The model provider returned no final answer." }, 502);
   return json({
     reply,
     backend: "openrouter",
-    model: body.model === "k3" ? "k3+hy3" : model,
+    model: body.model === "k3" ? "k3+hy3" : modelRoute,
+    meta: MODEL_META[body.model],
     memory: "disabled",
     rag: "not-uploaded",
-    usage,
   });
 }
 

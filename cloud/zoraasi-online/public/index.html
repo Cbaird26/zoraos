@@ -18,6 +18,8 @@
     #status-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6b5f58; }
     #dot { width: 7px; height: 7px; border-radius: 50%; background: #3a9e6f; transition: background 0.3s; box-shadow: 0 0 8px rgba(58,158,111,0.4); }
     #scene-selector { display: flex; gap: 4px; }
+    #model-select { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 5px 13px; color: #6b5f58; font-size: 11px; cursor: pointer; transition: all 0.25s; letter-spacing: 0.3px; outline: none; margin-left: 8px; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpath d='M0 0l4 6 4-6z' fill='%236b5f58'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+    #model-select:hover { border-color: rgba(237,155,105,0.3); color: #e8e0d8; }
     .sc-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 5px 13px; color: #6b5f58; font-size: 11px; cursor: pointer; transition: all 0.25s; letter-spacing: 0.3px; }
     .sc-btn:hover { border-color: rgba(237,155,105,0.3); color: #e8e0d8; }
     .sc-btn.active { border-color: rgba(237,155,105,0.5); color: #ed9b69; background: rgba(237,155,105,0.08); }
@@ -57,6 +59,7 @@
       #expr-label { font-size: 48px; letter-spacing: 8px; }
       #top-bar { padding: 10px 14px; flex-wrap: wrap; gap: 6px; }
       #scene-selector { gap: 3px; }
+      #model-selector { gap: 3px; }
       .sc-btn { font-size: 10px; padding: 4px 10px; }
       #gov-panel { min-width: 130px; padding: 10px 12px; }
       #identity h1 { font-size: 13px; }
@@ -81,6 +84,15 @@
       <button class="sc-btn" data-scene="observatory">✦ Observatory</button>
     </div>
     <div id="status-badge"><span id="dot"></span><span id="status-text">ready</span></div>
+    <select id="model-select">
+      <option value="hy3">Gemma 4 26B (free)</option>
+      <option value="k3">Gemma 4 31B (free)</option>
+      <option value="nemotron">Nemotron Ultra 550B (free)</option>
+      <option value="deepseek-flash">DeepSeek V4 Flash ($0.14/M)</option>
+      <option value="deepseek-pro">DeepSeek V4 Pro ($0.65/M)</option>
+      <option value="grok">Grok 4.20 ($1.88/M)</option>
+      <option value="terra">GPT-5.6 Terra ($8.75/M)</option>
+    </select>
   </div>
   <button id="gov-toggle">⚙</button>
   <div id="gov-panel" class="hidden">
