@@ -18,6 +18,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+import websockets
+import websockets.asyncio.server
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,6 +41,60 @@ def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     temporary = path.with_suffix(f"{path.suffix}.tmp")
     temporary.write_text(json.dumps(payload, indent=2, sort_keys=True))
     temporary.replace(path)
+
+
+class DaemonWebSocket:
+    """Broadcasts daemon status to connected pet bridge clients."""
+
+    def __init__(self, host: str = "127.0.0.1", port: int = 8766) -> None:
+        self.host = host
+        self.port = port
+        self.clients: set[websockets.asyncio.server.ServerConnection] = set()
+        self._server: websockets.asyncio.server.WebSocketServer | None = None
+        self._latest_state: dict[str, Any] = {}
+
+    async def start(self) -> None:
+        self._server = await websockets.asyncio.server.serve(
+            self._handler, self.host, self.port
+        )
+        logger.info("Daemon WebSocket server started on ws://%s:%s", self.host, self.port)
+
+    async def stop(self) -> None:
+        if self._server:
+            self._server.close()
+            await self._server.wait_closed()
+            logger.info("Daemon WebSocket server stopped")
+
+    async def _handler(self, conn: websockets.asyncio.server.ServerConnection) -> None:
+        self.clients.add(conn)
+        try:
+            # Send current state immediately on connect
+            if self._latest_state:
+                await conn.send(json.dumps(self._latest_state))
+            async for message in conn:
+                try:
+                    cmd = json.loads(message)
+                    if cmd.get("command") == "ping":
+                        await conn.send(json.dumps({"status": "pong", "state": self._latest_state}))
+                except json.JSONDecodeError:
+                    pass
+        except websockets.exceptions.ConnectionClosed:
+            pass
+        finally:
+            self.clients.discard(conn)
+
+    async def broadcast(self, state: dict[str, Any]) -> None:
+        self._latest_state = state
+        if not self.clients:
+            return
+        message = json.dumps(state)
+        disconnected = set()
+        for client in self.clients:
+            try:
+                await client.send(message)
+            except websockets.exceptions.ConnectionClosed:
+                disconnected.add(client)
+        self.clients -= disconnected
 
 
 @dataclass
@@ -95,6 +151,8 @@ class ZoraDaemon:
         task_iteration_limit: int = 3,
         task_token_limit: int = 4_000,
         task_wall_seconds: int = 300,
+        ws_enabled: bool = True,
+        ws_port: int = 8766,
     ) -> None:
         if not goal.strip():
             raise ValueError("A non-empty research goal is required")
@@ -126,6 +184,9 @@ class ZoraDaemon:
         self.task_iteration_limit = max(1, min(task_iteration_limit, 8))
         self.task_token_limit = max(256, min(task_token_limit, 16_000))
         self.task_wall_seconds = max(30, min(task_wall_seconds, 900))
+        self.ws_enabled = ws_enabled
+        self.ws_port = ws_port
+        self.ws_server = DaemonWebSocket(port=ws_port) if ws_enabled else None
         self.stop_file = self.state_dir / "stop"
         self.heartbeat_file = self.state_dir / "heartbeat.json"
         self.state_file = self.state_dir / "state.json"
@@ -410,6 +471,8 @@ class ZoraDaemon:
             "pid": os.getpid(),
         }
         write_json_atomic(self.heartbeat_file, payload)
+        if self.ws_server:
+            await self.ws_server.broadcast(payload)
 
     async def write_state(self) -> None:
         write_json_atomic(self.state_file, asdict(self.state))
@@ -453,6 +516,9 @@ class ZoraDaemon:
             self.state.daily_token_limit,
         )
 
+        if self.ws_server:
+            await self.ws_server.start()
+
         try:
             if not await self.health_check():
                 self.state.status = "blocked"
@@ -481,6 +547,8 @@ class ZoraDaemon:
             if self.state.status not in {"blocked", "daily_budget_exhausted"}:
                 self.state.status = "stopped"
             await self.write_state()
+            if self.ws_server:
+                await self.ws_server.stop()
             self.pid_file.unlink(missing_ok=True)
             logger.info(
                 "Daemon stopped: completed=%d, failed=%d, tokens=%d",
@@ -539,6 +607,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--stop", action="store_true", help="Request a running daemon to stop")
     parser.add_argument("--status", action="store_true", help="Print the last heartbeat and exit")
     parser.add_argument("--dry-run", action="store_true", help="Validate and print limits only")
+    parser.add_argument("--ws-port", type=int, default=8766, help="Daemon WebSocket port")
+    parser.add_argument("--no-ws", action="store_true", help="Disable WebSocket server")
     return parser
 
 
@@ -577,6 +647,8 @@ def main() -> None:
         task_iteration_limit=args.task_iterations,
         task_token_limit=args.task_tokens,
         task_wall_seconds=args.task_wall_seconds,
+        ws_enabled=not args.no_ws,
+        ws_port=args.ws_port,
     )
 
     if args.dry_run:
