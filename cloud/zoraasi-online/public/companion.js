@@ -13,7 +13,8 @@ const W = () => window.innerWidth;
 const H = () => window.innerHeight;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x06070b);
+// Keep the canvas transparent so the independently animated scene layer remains visible.
+scene.background = null;
 scene.fog = new THREE.FogExp2(0x06070b, 0.04);
 
 const camera = new THREE.PerspectiveCamera(26, W() / H(), 0.1, 30);
@@ -612,6 +613,8 @@ function animate() {
 }
 
 animate();
+document.documentElement.classList.add('webgl-ready');
+window.zoraVisual = { setExpression, buildScene };
 
 /* ── Resize ── */
 window.addEventListener('resize', () => {
@@ -625,6 +628,7 @@ window.addEventListener('resize', () => {
    UI Integration
    ══════════════════════════════════════════════════════════════ */
 
+if (!window.zoraAppBooted) {
 const chatBox = document.getElementById('chat-box');
 const inp = document.getElementById('inp');
 const sendBtn = document.getElementById('send-btn');
@@ -655,7 +659,11 @@ function appendMsg(role, text) {
   const div = document.createElement('div');
   div.className = 'm ' + role;
   const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  div.innerHTML = text + ' <span class="ts">' + ts + '</span>';
+  div.append(document.createTextNode(`${text} `));
+  const timestamp = document.createElement('span');
+  timestamp.className = 'ts';
+  timestamp.textContent = ts;
+  div.append(timestamp);
   chatBox.appendChild(div);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -784,3 +792,4 @@ document.addEventListener('mousemove', (e) => {
 });
 
 setTimeout(() => { exprLabel.style.transition = 'opacity 2s'; }, 5000);
+}

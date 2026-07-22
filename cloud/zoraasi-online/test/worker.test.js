@@ -271,11 +271,42 @@ test("health is public, sanitized, and security-header protected", async () => {
   assert.equal(JSON.stringify(payload).includes("key"), false);
 });
 
-test("private status fails closed when secrets are missing", async () => {
+test("static assets receive the same security policy as API responses", async () => {
   const response = await worker.fetch(
-    new Request("https://zora.example/api/status"),
-    { DB: {} },
+    new Request("https://zora.example/"),
+    {
+      ASSETS: {
+        async fetch() {
+          return new Response("<!doctype html><title>ZoraASI</title>", {
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          });
+        },
+      },
+    },
     { waitUntil() {} },
   );
-  assert.equal(response.status, 401);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("Content-Security-Policy"), /cdn\.jsdelivr\.net/u);
+  assert.equal(response.headers.get("X-Frame-Options"), "DENY");
+});
+
+test("public status exposes only sanitized model metadata", async () => {
+  const db = {
+    prepare() {
+      return {
+        bind() { return this; },
+        async first() { return { reserved_usd: 0 }; },
+      };
+    },
+  };
+  const response = await worker.fetch(
+    new Request("https://zora.example/api/status"),
+    { DB: db },
+    { waitUntil() {} },
+  );
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.status, "ready");
+  assert.equal(payload.models.hy3, "google/gemma-4-26b-a4b-it:free");
+  assert.equal(JSON.stringify(payload).includes("OPENROUTER_API_KEY"), false);
 });

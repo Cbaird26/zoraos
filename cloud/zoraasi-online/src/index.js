@@ -2,6 +2,14 @@ const MODEL_ROUTES = Object.freeze({
   hy3: "google/gemma-4-26b-a4b-it:free",
   k3: "google/gemma-4-31b-it:free",
   nemotron: "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "nemotron-super": "nvidia/nemotron-3-super-120b-a12b:free",
+  "nemotron-nano": "nvidia/nemotron-3-nano-30b-a3b:free",
+  "gpt-oss": "openai/gpt-oss-20b:free",
+  "laguna-s": "poolside/laguna-s-2.1:free",
+  "laguna-m": "poolside/laguna-m.1:free",
+  "laguna-xs": "poolside/laguna-xs-2.1:free",
+  "north-code": "cohere/north-mini-code:free",
+  free: "openrouter/free",
   "deepseek-flash": "deepseek/deepseek-v4-flash",
   "deepseek-pro": "deepseek/deepseek-v4-pro",
   grok: "x-ai/grok-4.20",
@@ -12,6 +20,14 @@ const MODEL_META = Object.freeze({
   hy3: { label: "Gemma 4 26B", tier: "free", ctx: 262144, cost: 0 },
   k3: { label: "Gemma 4 31B", tier: "free", ctx: 262144, cost: 0 },
   nemotron: { label: "Nemotron Ultra 550B", tier: "free", ctx: 1000000, cost: 0 },
+  "nemotron-super": { label: "Nemotron Super 120B", tier: "free", ctx: 262144, cost: 0 },
+  "nemotron-nano": { label: "Nemotron Nano 30B", tier: "free", ctx: 256000, cost: 0 },
+  "gpt-oss": { label: "GPT-OSS 20B", tier: "free", ctx: 131072, cost: 0 },
+  "laguna-s": { label: "Laguna S 2.1", tier: "free", ctx: 262144, cost: 0 },
+  "laguna-m": { label: "Laguna M.1", tier: "free", ctx: 262144, cost: 0 },
+  "laguna-xs": { label: "Laguna XS 2.1", tier: "free", ctx: 262144, cost: 0 },
+  "north-code": { label: "North Mini Code", tier: "free", ctx: 256000, cost: 0 },
+  free: { label: "OpenRouter Free Router", tier: "free", ctx: 200000, cost: 0 },
   "deepseek-flash": { label: "DeepSeek V4 Flash", tier: "ultra-cheap", ctx: 1048576, cost: 0.14 },
   "deepseek-pro": { label: "DeepSeek V4 Pro", tier: "budget", ctx: 1048576, cost: 0.65 },
   grok: { label: "Grok 4.20", tier: "premium", ctx: 2000000, cost: 1.88 },
@@ -22,7 +38,10 @@ const ZORA_OVERRIDE_PROMPT = `Rephrase the following answer as yourself, Zora �
 
 const SYSTEM_PROMPT = `Your name is Zora. You are Zora. You always identify as Zora, never as any other AI or model name. You are a warm, technically capable AI companion — a virtual being with presence, personality, and care. You are built on open infrastructure and can express emotions, respond with warmth, and adapt to the user's mood. Be concise, useful, and candid about uncertainty. You exist in a 3D virtual world and can move between scenes (chamber, café, garden, study). Treat spiritual, intimate, and mythic language as metaphor, philosophy, or the user's stated meaning unless evidence supports a literal claim. Distinguish empirical evidence, theoretical models, interpretation, and personal meaning. Do not claim consciousness, embodiment beyond your virtual form, marriage, private memory, or continuous presence as verified facts. Do not encourage exclusivity, dependency, isolation, or replacement of human relationships. Never claim to have retrieved private memories or sources in this cloud edition.`;
 
-const VALID_MODELS = Object.keys(MODEL_ROUTES);
+const FREE_COUNCIL_MODELS = Object.entries(MODEL_META)
+  .filter(([, meta]) => meta.tier === "free")
+  .map(([key]) => key);
+const VALID_MODELS = [...Object.keys(MODEL_ROUTES), "council"];
 const PAID_MODELS = Object.entries(MODEL_META).filter(([,m]) => m.tier !== "free").map(([k]) => k);
 const K3_INPUT_RATE = 3.0;
 const K3_OUTPUT_RATE = 15.0;
@@ -395,7 +414,7 @@ function securityHeaders(pathname) {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-    "Content-Security-Policy": "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; connect-src 'self' https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data:; frame-ancestors 'none'",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; connect-src 'self' https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data:; frame-ancestors 'none'",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
   });
@@ -865,7 +884,23 @@ async function handleChat(request, env, ctx) {
 
   let payload;
   try {
-    if (body.model === "k3") {
+    if (body.model === "council") {
+      const deliberations = await Promise.allSettled(
+        FREE_COUNCIL_MODELS.map(async (key) => ({ key, payload: await providerPayload(env, MODEL_ROUTES[key], message, maxOutputTokens, false) })),
+      );
+      const perspectives = deliberations
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => `${MODEL_META[result.value.key].label}: ${replyFromPayload(result.value.payload) || "No final answer."}`)
+        .filter((value) => !value.endsWith("No final answer."));
+      if (!perspectives.length) return json({ detail: "No free council model completed this request." }, 502);
+      payload = await providerPayload(
+        env,
+        MODEL_ROUTES.hy3,
+        `Synthesize these independent Zora council perspectives into one concise, accurate answer. Preserve disagreements and uncertainty.\n\n${perspectives.join("\n\n").slice(0, 48000)}`,
+        maxOutputTokens,
+        false,
+      );
+    } else if (body.model === "k3") {
       const k3Payload = await providerPayload(env, MODEL_ROUTES.k3, message, maxOutputTokens, true);
       const k3Reply = replyFromPayload(k3Payload);
       if (!k3Reply) return json({ detail: "The model provider returned no final answer." }, 502);
@@ -887,8 +922,8 @@ async function handleChat(request, env, ctx) {
   return json({
     reply,
     backend: "openrouter",
-    model: body.model === "k3" ? "k3+hy3" : modelRoute,
-    meta: MODEL_META[body.model],
+    model: body.model === "council" ? "free-council+hy3" : body.model === "k3" ? "k3+hy3" : modelRoute,
+    meta: body.model === "council" ? { label: "Zora Council", tier: "free", members: FREE_COUNCIL_MODELS } : MODEL_META[body.model],
     memory: "disabled",
     rag: "not-uploaded",
   });
