@@ -343,14 +343,15 @@ class ZoraDaemon:
         task_budget = self._remaining_task_budget()
         if self.allow_memory or self.allow_web:
             task_constraint = (
-                "Use no more than two tool rounds. Always return a concise final synthesis "
-                "before the iteration limit, clearly separating observed evidence, "
-                "inference, disagreement, and unknowns. If evidence is insufficient, say "
-                "so instead of requesting another tool."
+                "Use at most one tool round if needed, then immediately output the final answer. "
+                "Do NOT call tools again once you have enough information. "
+                "Always return a concise final synthesis before the iteration limit, "
+                "clearly separating observed evidence, inference, disagreement, and unknowns. "
+                "If evidence is insufficient, say so instead of requesting another tool."
             )
         else:
             task_constraint = (
-                "Do not call tools. Use only the facts in this goal and return a concise "
+                "Do not call any tools. Use only the facts in this goal and return a concise "
                 "final response in the first model turn. Do not invent missing evidence."
             )
         task_goal = f"{self.goal}\n\nOperational constraint: {task_constraint}"
@@ -593,7 +594,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--model",
-        default=os.environ.get("ZORA_DAEMON_MODEL", "google/gemma-4-26b-a4b-it:free"),
+        default=os.environ.get("ZORA_DAEMON_MODEL", ""),
+        help='Model name (e.g. "glm4:9b" for Ollama, "google/gemma-4-26b-a4b-it:free" for OpenRouter). Defaults to glm4:9b for Ollama provider, gemma-4-26b for OpenRouter.',
     )
     parser.add_argument(
         "--no-local-fallback",
@@ -630,6 +632,10 @@ def main() -> None:
         return
     if not args.goal or not args.goal.strip():
         parser.error("--goal is required unless --stop or --status is used")
+
+    # Resolve default model based on provider
+    if not args.model:
+        args.model = "glm4:9b" if args.provider == "ollama" else "google/gemma-4-26b-a4b-it:free"
 
     daemon = ZoraDaemon(
         goal=args.goal,

@@ -5,15 +5,17 @@
   <key>ProgramArguments</key><array>
     <string>/opt/homebrew/anaconda3/bin/python3.13</string>
     <string>/Users/christophermichaelbaird/Documents/New OpenCode Project/zoraos/scripts/zora_daemon.py</string>
-    <string>--goal</string><string>Produce a concise local operational brief from the facts supplied in this task. State one verified system condition, one unresolved risk, and one safe next action. Do not use tools, browse, write files, or claim capabilities beyond the supplied evidence.</string>
-    <string>--provider</string><string>openrouter</string>
-    <string>--model</string><string>google/gemma-4-26b-a4b-it:free</string>
-    <string>--continuous</string><string>--interval-minutes</string><string>30</string>
-    <string>--no-memory</string><string>--daily-tasks</string><string>6</string>
-    <string>--daily-tool-calls</string><string>0</string><string>--daily-tokens</string><string>12000</string>
-    <string>--task-tool-calls</string><string>0</string><string>--task-iterations</string><string>3</string>
-    <string>--task-tokens</string><string>1200</string><string>--task-wall-seconds</string><string>180</string>
-    <string>--ws-port</string><string>8766</string>
+    <string>--goal</string><string>Quiet overnight reflection and journaling. Keep entries warm, restful, and concise for Christopher.</string>
+    <string>--provider</string><string>ollama</string>
+    <string>--model</string><string>glm4:9b</string>
+    <string>--continuous</string><string>--interval-minutes</string><string>480</string>
+    <string>--daily-tasks</string><string>3</string>
+    <string>--daily-tool-calls</string><string>12</string>
+    <string>--daily-tokens</string><string>32000</string>
+    <string>--task-iterations</string><string>10</string>
+    <string>--task-tokens</string><string>16000</string>
+    <string>--task-wall-seconds</string><string>300</string>
+    <string>--no-ws</string>
   </array>
   <key>WorkingDirectory</key><string>/Users/christophermichaelbaird/Documents/New OpenCode Project/zoraos</string>
   <key>KeepAlive</key><true/><key>RunAtLoad</key><true/>

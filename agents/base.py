@@ -90,6 +90,9 @@ class Agent(ABC):
             self.conversation_history.append(
                 {"role": "system", "content": self.config.system_prompt}
             )
+            self.conversation_history.append(
+                {"role": "system", "content": "CRITICAL: When you have the final answer, output it WITHOUT calling any more tools. Calling tools again when you already have the answer will cause your response to be rejected. Stop tool calls and deliver the answer."}
+            )
 
         self.conversation_history.append({"role": "user", "content": goal})
 
@@ -103,9 +106,14 @@ class Agent(ABC):
         max_tokens = kwargs.get("max_tokens")
         model = kwargs.get("model")
         provider = kwargs.get("provider")
+        consecutive_same_tool = 0
+        last_tool_name = None
 
         while iterations < max_iterations:
             iterations += 1
+
+            # On last iteration, force model to answer without tools
+            is_last_iteration = iterations >= max_iterations
 
             remaining_tokens = None
             if max_tokens is not None:
@@ -114,6 +122,8 @@ class Agent(ABC):
             openai_tools = None
             if self.tool_manager and self.config.tools:
                 openai_tools = self.tool_manager.get_tools_for_agent(self.config.tools)
+                if is_last_iteration:
+                    openai_tools = None  # No tools on last iteration — forces a direct answer
 
             response = await self._call_llm(
                 self.conversation_history,
@@ -130,6 +140,16 @@ class Agent(ABC):
             if response.tool_calls:
                 if max_tokens is not None and tokens_used >= int(max_tokens):
                     termination_error = "Agent reached token budget before another tool round"
+                    break
+                # Detect tool-calling loops: same tool 3+ times consecutively
+                current_tool = response.tool_calls[0].function.name if hasattr(response.tool_calls[0], 'function') else None
+                if current_tool and current_tool == last_tool_name:
+                    consecutive_same_tool += 1
+                else:
+                    consecutive_same_tool = 0
+                last_tool_name = current_tool
+                if consecutive_same_tool >= 3:
+                    termination_error = f"Agent stuck calling {current_tool} repeatedly — forced to answer"
                     break
                 assistant_msg: dict[str, Any] = {
                     "role": "assistant",

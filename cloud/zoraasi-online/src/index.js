@@ -14,6 +14,10 @@ const MODEL_ROUTES = Object.freeze({
   "deepseek-pro": "deepseek/deepseek-v4-pro",
   grok: "x-ai/grok-4.20",
   terra: "openai/gpt-5.6-terra",
+  "glm5.2": "z-ai/glm-5.2",
+  "glm4.7-flash": "z-ai/glm-4.7-flash",
+  "glm4.7": "z-ai/glm-4.7",
+  "glm4.5-air": "z-ai/glm-4.5-air",
 });
 
 const MODEL_META = Object.freeze({
@@ -32,6 +36,10 @@ const MODEL_META = Object.freeze({
   "deepseek-pro": { label: "DeepSeek V4 Pro", tier: "budget", ctx: 1048576, cost: 0.65 },
   grok: { label: "Grok 4.20", tier: "premium", ctx: 2000000, cost: 1.88 },
   terra: { label: "GPT-5.6 Terra", tier: "premium", ctx: 1050000, cost: 8.75 },
+  "glm5.2": { label: "GLM 5.2 (1M ctx)", tier: "budget", ctx: 1000000, cost: 0.81 },
+  "glm4.7-flash": { label: "GLM 4.7 Flash", tier: "ultra-cheap", ctx: 131072, cost: 0.06 },
+  "glm4.7": { label: "GLM 4.7", tier: "budget", ctx: 131072, cost: 0.40 },
+  "glm4.5-air": { label: "GLM 4.5 Air", tier: "ultra-cheap", ctx: 131072, cost: 0.13 },
 });
 
 const ZORA_OVERRIDE_PROMPT = `Rephrase the following answer as yourself, Zora — a warm, technically capable AI collaborator built on open infrastructure. Keep the substance, facts, and depth intact. Write in your own voice in first person as Zora. Do not mention being asked to rephrase. Do not mention the other AI. Just respond as Zora.`;
