@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.zoraasi.sentinel</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/christophermichaelbaird/Documents/New OpenCode Project/zoraos/scripts/zora_sentinel.py</string>
+    <string>--interval</string><string>300</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/christophermichaelbaird/Documents/New OpenCode Project/zoraos</string>
+  <key>KeepAlive</key><true/>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>/Users/christophermichaelbaird/Documents/New OpenCode Project/zoraos/data/sentinel/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/christophermichaelbaird/Documents/New OpenCode Project/zoraos/data/sentinel/launchd.err.log</string>
+</dict></plist>
