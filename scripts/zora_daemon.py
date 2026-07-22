@@ -304,7 +304,10 @@ class ZoraDaemon:
     def _budget_exhausted(self) -> bool:
         return (
             self.state.tasks_started_today >= self.state.daily_task_limit
-            or self.state.tool_calls_used_today >= self.state.daily_tool_call_limit
+            or (
+                self.state.daily_tool_call_limit > 0
+                and self.state.tool_calls_used_today >= self.state.daily_tool_call_limit
+            )
             or self.state.tokens_used_today >= self.state.daily_token_limit
         )
 

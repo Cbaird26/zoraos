@@ -56,7 +56,7 @@ async def test_research_request_uses_bounded_hy3_and_is_read_only(tmp_path, monk
     assert captured["method"] == "POST"
     assert captured["path"] == "/api/v1/agents/run"
     assert captured["body"]["provider"] == "openrouter"
-    assert captured["body"]["model"] == "tencent/hy3"
+    assert captured["body"]["model"] == "google/gemma-4-26b-a4b-it:free"
     assert "Always return a concise final synthesis" in captured["body"]["goal"]
     assert captured["body"]["approved_tools"] == [
         "memory_search",
@@ -73,12 +73,12 @@ async def test_research_request_uses_bounded_hy3_and_is_read_only(tmp_path, monk
     assert len(result_files) == 1
     saved_result = json.loads(result_files[0].read_text())
     assert saved_result["provider"] == "openrouter"
-    assert saved_result["model"] == "tencent/hy3"
+    assert saved_result["model"] == "google/gemma-4-26b-a4b-it:free"
     assert saved_result["success"] is True
 
     heartbeat = json.loads((tmp_path / "heartbeat.json").read_text())
     assert heartbeat["provider"] == "openrouter"
-    assert heartbeat["model"] == "tencent/hy3"
+    assert heartbeat["model"] == "google/gemma-4-26b-a4b-it:free"
     assert heartbeat["fallback_provider"] == "ollama"
     assert heartbeat["write_tools_approved"] is False
     assert heartbeat["desktop_tools_approved"] is False
